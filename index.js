@@ -24,6 +24,7 @@ const getandgetbyidemployeeRoute = require('./routes/getandgetbyidemployeeRoute'
 const leadandtraveldataRoute = require('./routes/leadandtraveldataRoute');
 const destinationRoute = require('./routes/destinationRoute');
 const path = require("path");
+const themeRoute = require("./routes/themeRoute");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -56,6 +57,7 @@ app.use('/', getandgetbyidemployeeRoute);
 
 app.use('/api', leadandtraveldataRoute);
 app.use('/api', destinationRoute);
+app.use("/api", themeRoute);
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);

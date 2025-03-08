@@ -4,7 +4,7 @@ const db = require('../config/db'); // Adjust the path to your database connecti
 
 // Fetch all customers
 router.get('/api/customers', (req, res) => {
-  const query = 'SELECT * FROM customers';
+  const query = 'SELECT * FROM customers ORDER BY id DESC ';
 
   db.query(query, (err, results) => {
     if (err) {

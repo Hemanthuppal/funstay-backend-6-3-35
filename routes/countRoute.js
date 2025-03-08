@@ -130,4 +130,59 @@ router.get('/leads/not-meta-ads', (req, res) => {
         res.json({ count: results[0].count });
     });
 });
+
+router.get('/leads/facebook', (req, res) => {
+  const query = `
+    SELECT COUNT(*) AS count 
+    FROM addleads 
+    WHERE sources = 'fb'
+  `;
+  
+  db.query(query, (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ count: results[0].count });
+  });
+});
+
+router.get('/leads/referral', (req, res) => {
+  const query = `
+    SELECT COUNT(*) AS count 
+    FROM addleads 
+    WHERE primarySource = 'Referral'
+  `;
+  
+  db.query(query, (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ count: results[0].count });
+  });
+});
+
+router.get('/leads/campaign', (req, res) => {
+  const query = `
+    SELECT COUNT(*) AS count 
+    FROM addleads 
+    WHERE channel = 'Website'
+  `;
+  
+  db.query(query, (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ count: results[0].count });
+  });
+});
+
+router.get('/leads/google', (req, res) => {
+  const query = `
+    SELECT COUNT(*) AS count 
+    FROM addleads 
+    WHERE primarySource = 'Google'
+  `;
+  
+  db.query(query, (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ count: results[0].count });
+  });
+});
+
+
+
 module.exports = router;

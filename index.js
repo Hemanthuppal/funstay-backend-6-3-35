@@ -23,6 +23,8 @@ const addmanagerRoute = require('./routes/addmanagerRoute');
 const getandgetbyidemployeeRoute = require('./routes/getandgetbyidemployeeRoute');
 const leadandtraveldataRoute = require('./routes/leadandtraveldataRoute');
 const destinationRoute = require('./routes/destinationRoute');
+const selfassignRoute = require('./routes/selfassignRoute');
+const archieveRoute = require('./routes/archieveRoute');
 const path = require("path");
 const themeRoute = require("./routes/themeRoute");
 
@@ -58,6 +60,8 @@ app.use('/', getandgetbyidemployeeRoute);
 app.use('/api', leadandtraveldataRoute);
 app.use('/api', destinationRoute);
 app.use("/api", themeRoute);
+app.use('/api', selfassignRoute);
+app.use('/api', archieveRoute);
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);

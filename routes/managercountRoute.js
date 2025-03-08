@@ -138,4 +138,61 @@ router.get('/leads/not-meta-ads/:managerid', (req, res) => {
   });
 });
 
+
+router.get('/leads/facebook/:managerid', (req, res) => {
+  const { managerid } = req.params;
+  const query = `
+    SELECT COUNT(*) AS count 
+    FROM addleads 
+    WHERE sources = 'fb' AND managerid = ?
+  `;
+  
+  db.query(query, [managerid], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ count: results[0].count });
+  });
+});
+
+router.get('/leads/referral/:managerid', (req, res) => {
+  const { managerid } = req.params;
+  const query = `
+    SELECT COUNT(*) AS count 
+    FROM addleads 
+    WHERE primarySource = 'Referral' AND managerid = ?
+  `;
+  
+  db.query(query, [managerid], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ count: results[0].count });
+  });
+});
+
+router.get('/leads/campaign/:managerid', (req, res) => {
+  const { managerid } = req.params;
+  const query = `
+    SELECT COUNT(*) AS count 
+    FROM addleads 
+    WHERE channel = 'Website' AND managerid = ?
+  `;
+  
+  db.query(query, [managerid], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ count: results[0].count });
+  });
+});
+
+router.get('/leads/google/:managerid', (req, res) => {
+  const { managerid } = req.params;
+  const query = `
+    SELECT COUNT(*) AS count 
+    FROM addleads 
+    WHERE primarySource = 'Google' AND managerid = ?
+  `;
+  
+  db.query(query, [managerid], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ count: results[0].count });
+  });
+});
+
 module.exports = router;

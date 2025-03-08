@@ -15,6 +15,9 @@ router.delete('/deleteByLeadId/:leadid', leadController.deleteLead);
 router.put('/leads/status/:leadid', leadController.updateLeadStatus);
 router.get('/lead-opp-comment/:leadid', leadController.getLeadData);
 
+
+router.put('/archiveByLeadId/:leadid', leadController.archiveLead);
+
 router.post('/assign-lead', assignLead);
 
 

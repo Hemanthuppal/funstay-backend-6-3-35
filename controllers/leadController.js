@@ -284,3 +284,18 @@ exports.getLeadData = (req, res) => {
   });
 };
 
+
+exports.archiveLead = (req, res) => {
+  const { leadid } = req.params;
+  const query = 'UPDATE addleads SET archive = "archived" WHERE leadid = ?';
+
+  db.query(query, [leadid], (err, result) => {
+    if (err) {
+      res.status(500).json({ message: 'Failed to archive lead.' });
+    } else if (result.affectedRows === 0) {
+      res.status(404).json({ message: 'Lead not found.' });
+    } else {
+      res.status(200).json({ message: 'Lead archived successfully.' });
+    }
+  });
+};

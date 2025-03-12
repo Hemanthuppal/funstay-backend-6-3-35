@@ -138,7 +138,6 @@ router.get('/leads/not-meta-ads/:managerid', (req, res) => {
   });
 });
 
-
 router.get('/leads/facebook/:managerid', (req, res) => {
   const { managerid } = req.params;
   const query = `
@@ -189,6 +188,24 @@ router.get('/leads/google/:managerid', (req, res) => {
     WHERE primarySource = 'Google' AND managerid = ?
   `;
   
+  db.query(query, [managerid], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ count: results[0].count });
+  });
+});
+
+router.get('/leads/others/:managerid', (req, res) => {
+  const { managerid } = req.params;
+  const query = `
+    SELECT COUNT(*) AS count 
+FROM addleads 
+WHERE managerid = ? 
+  AND (primarySource NOT IN ('Google', 'Referral') OR primarySource IS NULL)
+  AND (sources NOT IN ('fb', 'Facebook') OR sources IS NULL)
+  AND (channel IS NULL OR channel != 'Website');
+
+  `;
+
   db.query(query, [managerid], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
     res.json({ count: results[0].count });

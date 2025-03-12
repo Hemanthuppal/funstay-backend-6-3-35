@@ -144,7 +144,6 @@ router.get('/lead/not-meta-ads/:assignedSalesId', (req, res) => {
   });
 });
 
-
 router.get('/lead/facebook/:assignedSalesId', (req, res) => {
   const { assignedSalesId } = req.params;
   const query = `
@@ -200,5 +199,23 @@ router.get('/lead/google/:assignedSalesId', (req, res) => {
     res.json({ count: results[0].count });
   });
 });
+
+router.get('/lead/others/:assignedSalesId', (req, res) => {
+  const { assignedSalesId } = req.params;
+  const query = `
+    SELECT COUNT(*) AS count 
+    FROM addleads 
+    WHERE assignedSalesId = ? 
+       AND (primarySource NOT IN ('Google', 'Referral') OR primarySource IS NULL)
+  AND (sources NOT IN ('fb', 'Facebook') OR sources IS NULL)
+  AND (channel IS NULL OR channel != 'Website');
+  `;
+
+  db.query(query, [assignedSalesId], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ count: results[0].count });
+  });
+});
+
 
 module.exports = router;

@@ -183,6 +183,22 @@ router.get('/leads/google', (req, res) => {
   });
 });
 
+router.get('/leads/others', (req, res) => {
+  const query = `
+    SELECT COUNT(*) AS count 
+FROM addleads 
+WHERE (primarySource NOT IN ('Google', 'Referral') OR primarySource IS NULL)
+  AND (sources NOT IN ('fb', 'Facebook') OR sources IS NULL)
+  AND (channel IS NULL OR channel != 'Website');
+
+  `;
+
+  db.query(query, (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ count: results[0].count });
+  });
+});
+
 
 
 module.exports = router;

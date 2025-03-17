@@ -5,9 +5,9 @@ const Opportunity = {
     const query = `
       INSERT INTO travel_opportunity (
         leadid, customerid, origincity,destination, start_date, end_date, duration, adults_count, 
-        children_count, child_ages, approx_budget, assignee, notes, comments, 
+        children_count, child_ages, approx_budget, assignee, notes,description, comments, 
         reminder_setting, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, NOW(), NOW())
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?, NOW(), NOW())
     `;
     db.query(query, data, callback);
   },

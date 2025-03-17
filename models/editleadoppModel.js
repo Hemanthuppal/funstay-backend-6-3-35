@@ -62,7 +62,7 @@ const updateOpportunity = (leadid, opportunityData, callback) => {
     UPDATE travel_opportunity
     SET origincity = ?,destination = ?, start_date = ?, end_date = ?, duration = ?, 
         adults_count = ?, children_count = ?, child_ages = ?, approx_budget = ?, 
-         notes = ?, comments = ?, reminder_setting = ?
+         notes = ?, comments = ?, reminder_setting = ?, description = ?
     WHERE leadid = ?`;
 
   db.query(query, [
@@ -79,6 +79,7 @@ const updateOpportunity = (leadid, opportunityData, callback) => {
     opportunityData.notes,
     opportunityData.comments,
     opportunityData.reminder_setting,
+    opportunityData.description,
     leadid,
   ], callback);
 };

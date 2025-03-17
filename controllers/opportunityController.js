@@ -106,6 +106,7 @@ exports.createOpportunity = (req, res) => {
     approx_budget,
     assignee,
     notes,
+    description,
     comments,
     reminder_setting,
   } = req.body;
@@ -124,6 +125,7 @@ exports.createOpportunity = (req, res) => {
     approx_budget,
     assignee,
     notes,
+    description,
     comments,
     reminder_setting,
   ];

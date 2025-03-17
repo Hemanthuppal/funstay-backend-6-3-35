@@ -116,9 +116,50 @@ router.put("/update-lead-customer/:leadid", (req, res) => {
     });
 });
 
+router.get("/sales-leadid/leads/:leadid/:userId", async (req, res) => {
+    const { leadid, userId } = req.params;
 
+    try {
+        const query = "SELECT leadid FROM addleads WHERE leadid = ? AND assignedSalesId = ?";
+        db.query(query, [leadid, userId], (err, results) => {
+            if (err) {
+                console.error("Database error:", err);
+                return res.status(500).json({ error: "Database error" });
+            }
 
+            if (results.length > 0) {
+                return res.json({ message: "Exists" });
+            } else {
+                return res.status(404).json({ error: "Data not found" });
+            }
+        });
+    } catch (error) {
+        console.error("Server error:", error);
+        res.status(500).json({ error: "Server error" });
+    }
+});
 
+router.get("/manager-leadid/leads/:leadid/:userId", async (req, res) => {
+    const { leadid, userId } = req.params;
 
+    try {
+        const query = "SELECT leadid FROM addleads WHERE leadid = ? AND managerid = ?";
+        db.query(query, [leadid, userId], (err, results) => {
+            if (err) {
+                console.error("Database error:", err);
+                return res.status(500).json({ error: "Database error" });
+            }
+
+            if (results.length > 0) {
+                return res.json({ message: "Exists" });
+            } else {
+                return res.status(404).json({ error: "Data not found" });
+            }
+        });
+    } catch (error) {
+        console.error("Server error:", error);
+        res.status(500).json({ error: "Server error" });
+    }
+});
 
 module.exports = router;

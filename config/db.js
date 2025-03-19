@@ -8,11 +8,18 @@ const mysql = require('mysql2');
 //   database: 'funstay_db', // Your database name
 // });
 
+// const db = mysql.createConnection({
+//   host: 'localhost',
+//   user: 'root',
+//   password: '', // Replace with your DB password
+//   database: 'funstay', // Replace with your DB name
+// });
+
 const db = mysql.createConnection({
   host: 'localhost',
   user: 'root',
   password: '', // Replace with your DB password
-  database: 'funstay', // Replace with your DB name
+  database: 'funstaydb', // Replace with your DB name
 });
 
 db.promise()

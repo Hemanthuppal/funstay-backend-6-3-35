@@ -8,6 +8,8 @@ const { assignLead , adminassignLead } = require('../controllers/employeeControl
 const { fetchLeadData } = require('../controllers/leadOppCommentController');
 
 router.post('/leads', leadController.createLead);
+router.post('/managerleads', leadController.managercreateLead);
+router.post('/adminleads', leadController.admincreateLead);
 router.get('/allleads', leadController.getAllLeads);
 router.get('/leads/:leadid', leadController.getLeadById);
 router.put('/leads/update/:leadid', leadController.updateLead);

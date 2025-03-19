@@ -70,7 +70,7 @@ const getEmployees = async (req, res) => {
 
 
 const adminassignLead = (req, res) => {
-  const { leadid, employeeName, employeeId, managerId, userId, userName } = req.body;
+  const { leadid, employeeName, employeeId, managerId, userId, userName,status } = req.body;
 
   console.log("Received employee ID:", employeeId);
   console.log("Received employee Name:", employeeName);
@@ -78,7 +78,7 @@ const adminassignLead = (req, res) => {
   console.log("Received Manager ID (for reassignleads):", userId);
   console.log("Received Manager ID (for notifications):", managerId);
 
-  adminupdateEmployeeModel(leadid, employeeName, employeeId, managerId, userId, userName, (err, results) => {
+  adminupdateEmployeeModel(leadid, employeeName, employeeId, managerId, userId, userName,status, (err, results) => {
     if (err) {
       console.error('Error in updateEmployeeModel:', err);
       return res.status(500).json({ message: 'Error updating lead or inserting notification' });
@@ -144,8 +144,26 @@ const getEmployeesByManagerId = (req, res) => {
 // };
 
 
+// const assignLead = (req, res) => {
+//   const { leadid, employeeName, employeeId, managerId, userId, userName } = req.body;
+
+//   console.log("Received employee ID:", employeeId);
+//   console.log("Received employee Name:", employeeName);
+//   console.log("Received Manager Name (assign_to_manager):", userName);
+//   console.log("Received Manager ID (for reassignleads):", userId);
+//   console.log("Received Manager ID (for notifications):", managerId);
+
+//   updateEmployeeModel(leadid, employeeName, employeeId, managerId, userId, userName, (err, results) => {
+//     if (err) {
+//       console.error('Error in updateEmployeeModel:', err);
+//       return res.status(500).json({ message: 'Error updating lead or inserting notification' });
+//     }
+//     res.status(200).json({ message: "Assignee updated and notification sent." });
+//   });
+// };
+
 const assignLead = (req, res) => {
-  const { leadid, employeeName, employeeId, managerId, userId, userName } = req.body;
+  const { leadid, employeeName, employeeId, managerId, userId, userName,status } = req.body;
 
   console.log("Received employee ID:", employeeId);
   console.log("Received employee Name:", employeeName);
@@ -153,7 +171,7 @@ const assignLead = (req, res) => {
   console.log("Received Manager ID (for reassignleads):", userId);
   console.log("Received Manager ID (for notifications):", managerId);
 
-  updateEmployeeModel(leadid, employeeName, employeeId, managerId, userId, userName, (err, results) => {
+  updateEmployeeModel(leadid, employeeName, employeeId, managerId, userId, userName ,status, (err, results) => {
     if (err) {
       console.error('Error in updateEmployeeModel:', err);
       return res.status(500).json({ message: 'Error updating lead or inserting notification' });
@@ -161,8 +179,6 @@ const assignLead = (req, res) => {
     res.status(200).json({ message: "Assignee updated and notification sent." });
   });
 };
-
-
 
 const getEmployeesByManager = (req, res) => {
   const managerId = req.params.managerId;

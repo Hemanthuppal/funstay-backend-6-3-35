@@ -152,6 +152,456 @@ exports.createLead = (req, res) => {
 };
 
 
+exports.managercreateLead = (req, res) => {
+  const {
+    lead_type,
+    name,
+    email,
+    phone_number,
+    country_code,
+    primarySource,
+    secondarysource,
+    origincity,
+    destination,
+    another_name,
+    another_email,
+    another_phone_number,
+    corporate_id,
+    description,
+    assignedSalesId,
+    assignedSalesName,
+    assign_to_manager,
+    managerid,
+    admin,
+    employee_id,
+    manager_id
+  } = req.body;
+
+  const destinationString = destination.join(", ");
+  // Check if customer already exists
+  const checkCustomerQuery = "SELECT id, customer_status FROM customers WHERE phone_number = ?";
+  db.query(checkCustomerQuery, [phone_number], (err, results) => {
+    if (err) {
+      console.error("Error checking customer existence:", err);
+      return res.status(500).json({ message: "Database error." });
+    }
+
+    let customerId;
+    let customerStatus = "new"; // Default status is 'new'
+
+    if (results.length > 0) {
+      // Customer already exists
+      customerId = results[0].id;
+      if (results[0].customer_status === "existing") {
+        customerStatus = "existing";
+      }
+      insertLead();
+    } else {
+      // Insert new customer
+      const insertCustomerQuery = `
+        INSERT INTO customers (
+          name, email, phone_number, country_code,
+          another_name, another_email, another_phone_number, customer_status
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+      const customerData = [
+        name, email, phone_number, country_code,
+        another_name, another_email, another_phone_number, "new"
+      ];
+      db.query(insertCustomerQuery, customerData, (err, result) => {
+        if (err) {
+          console.error("Error inserting customer:", err);
+          return res.status(500).json({ message: "Failed to add customer." });
+        }
+        customerId = result.insertId;
+        insertLead();
+      });
+    }
+
+    function insertLead() {
+      const insertLeadQuery = `
+        INSERT INTO addleads (
+          lead_type, name, email, phone_number, country_code,
+          primarySource, secondarysource, origincity, destination,
+          another_name, another_email, another_phone_number,
+          corporate_id, description, assignedSalesId, assignedSalesName,
+          assign_to_manager, managerid, customerid, customer_status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+      const leadData = [
+        lead_type, name, email, phone_number, country_code,
+        primarySource, secondarysource, origincity,  destinationString,
+        another_name, another_email, another_phone_number,
+        corporate_id ? Number(corporate_id) : null,
+        description,
+        assignedSalesId ? Number(assignedSalesId) : null,
+        assignedSalesName,
+        assign_to_manager,
+        managerid ? Number(managerid) : null,
+        customerId,
+        customerStatus
+      ];
+
+      db.query(insertLeadQuery, leadData, (err, result) => {
+        if (err) {
+          console.error("Error inserting/updating lead:", err);
+          return res.status(500).json({ message: "Failed to add lead." });
+        }
+
+        // --- Begin Reassign Lead Insertion ---
+        const reassignLeadQuery = `
+          INSERT INTO reassignleads (
+            leadid, assignedSalesId, assignedSalesName, assign_to_manager, managerid
+          ) VALUES (?, ?, ?, ?, ?)
+        `;
+        const reassignData = [
+          result.insertId,
+          assignedSalesId ? Number(assignedSalesId) : null,
+          assignedSalesName,
+          "null",
+          "null"
+        ];
+        db.query(reassignLeadQuery, reassignData, (reassignErr, reassignResult) => {
+          if (reassignErr) {
+            console.error("Error inserting into reassignleads:", reassignErr);
+            // We log the error but continue the flow.
+          }
+        });
+        // --- End Reassign Lead Insertion ---
+
+        // --- Begin Notification Insertion ---
+        const notificationMessage = `${admin || ""} assigned you a Lead`;
+        const insertNotificationQuery = `
+          INSERT INTO notifications (
+            employeeId, managerid, name, message, createdAt, \`read\`,status
+          ) VALUES (?, ?, ?, ?, NOW(), 0,?)
+        `;
+        db.query(
+          insertNotificationQuery,
+          [
+            assignedSalesId ? Number(assignedSalesId) : null, 
+            manager_id ? Number(manager_id) : null,
+            assignedSalesName,
+            notificationMessage,
+            "lead"
+          ],
+          (notificationErr, notificationResult) => {
+            if (notificationErr) {
+              console.error("Error inserting notification:", notificationErr);
+              // Continue even if notification insertion fails.
+            }
+          }
+        );
+        // --- End Notification Insertion ---
+
+        res.status(201).json({ message: "Lead added/updated successfully!", leadId: result.insertId });
+      });
+    }
+  });
+};
+
+
+exports.admincreateLead = (req, res) => {
+  const {
+    lead_type,
+    name,
+    email,
+    phone_number,
+    country_code,
+    primarySource,
+    secondarysource,
+    origincity,
+    destination,
+    another_name,
+    another_email,
+    another_phone_number,
+    corporate_id,
+    description,
+    assignedSalesId,
+    assignedSalesName,
+    assign_to_manager,
+    managerid,
+    admin,
+    employee_id,
+    manager_id
+  } = req.body;
+
+  const destinationString = destination.join(", ");
+  // Check if customer already exists
+  const checkCustomerQuery = "SELECT id, customer_status FROM customers WHERE phone_number = ?";
+  db.query(checkCustomerQuery, [phone_number], (err, results) => {
+    if (err) {
+      console.error("Error checking customer existence:", err);
+      return res.status(500).json({ message: "Database error." });
+    }
+
+    let customerId;
+    let customerStatus = "new"; // Default status is 'new'
+
+    if (results.length > 0) {
+      // Customer already exists
+      customerId = results[0].id;
+      if (results[0].customer_status === "existing") {
+        customerStatus = "existing";
+      }
+      insertLead();
+    } else {
+      // Insert new customer
+      const insertCustomerQuery = `
+        INSERT INTO customers (
+          name, email, phone_number, country_code,
+          another_name, another_email, another_phone_number, customer_status
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+      const customerData = [
+        name, email, phone_number, country_code,
+        another_name, another_email, another_phone_number, "new"
+      ];
+      db.query(insertCustomerQuery, customerData, (err, result) => {
+        if (err) {
+          console.error("Error inserting customer:", err);
+          return res.status(500).json({ message: "Failed to add customer." });
+        }
+        customerId = result.insertId;
+        insertLead();
+      });
+    }
+
+    function insertLead() {
+      const insertLeadQuery = `
+        INSERT INTO addleads (
+          lead_type, name, email, phone_number, country_code,
+          primarySource, secondarysource, origincity, destination,
+          another_name, another_email, another_phone_number,
+          corporate_id, description, assignedSalesId, assignedSalesName,
+          assign_to_manager, managerid, customerid, customer_status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+      const leadData = [
+        lead_type, name, email, phone_number, country_code,
+        primarySource, secondarysource, origincity,  destinationString,
+        another_name, another_email, another_phone_number,
+        corporate_id ? Number(corporate_id) : null,
+        description,
+        assignedSalesId ? Number(assignedSalesId) : null,
+        assignedSalesName,
+        assign_to_manager,
+        managerid ? Number(managerid) : null,
+        customerId,
+        customerStatus
+      ];
+
+      db.query(insertLeadQuery, leadData, (err, result) => {
+        if (err) {
+          console.error("Error inserting/updating lead:", err);
+          return res.status(500).json({ message: "Failed to add lead." });
+        }
+
+       // --- Begin Reassign Lead Insertion ---
+       const reassignLeadQuery = `
+       INSERT INTO reassignleads (
+         leadid, assignedSalesId, assignedSalesName, assign_to_manager, managerid
+       ) VALUES (?, ?, ?, ?, ?)
+     `;
+     const reassignData = [
+       result.insertId,
+       null,
+       null,
+       assign_to_manager || null,
+       managerid ? parseInt(managerid, 10) || null : null
+     ];
+
+     db.query(reassignLeadQuery, reassignData, (reassignErr, reassignResult) => {
+       if (reassignErr) {
+         console.error("Error inserting into reassignleads:", reassignErr);
+       }
+     });
+     // --- End Reassign Lead Insertion ---
+
+     // --- Begin Notification Insertion ---
+     const notificationMessage = ` Admin assigned you a Lead`;
+     const insertNotificationQuery = `
+       INSERT INTO notifications (
+         employeeId, managerid, name, message, createdAt, \`read\`, status
+       ) VALUES (?, ?, ?, ?, NOW(), 0, ?)
+     `;
+
+     db.query(
+       insertNotificationQuery,
+       [
+         null,
+         managerid ? parseInt(managerid, 10) || null : null,
+         assign_to_manager || null,
+         notificationMessage,
+         "lead"
+       ],
+       (notificationErr, notificationResult) => {
+         if (notificationErr) {
+           console.error("Error inserting notification:", notificationErr);
+         }
+       }
+     );
+     // --- End Notification Insertion ---
+
+     res.status(201).json({ message: "Lead added/updated successfully!", leadId: result.insertId });
+   });
+ }
+});
+};
+
+
+
+
+// exports.createLead = (req, res) => {
+//   const {
+//     lead_type,
+//     name,
+//     email,
+//     phone_number,
+//     country_code,
+//     primarySource,
+//     secondarysource,
+//     origincity,
+//     destination,
+//     another_name,
+//     another_email,
+//     another_phone_number,
+//     corporate_id,
+//     description,
+//     assignedSalesId,
+//     assignedSalesName,
+//     assign_to_manager,
+//     managerid,
+//     admin,
+//     employee_id,
+//     manager_id
+//   } = req.body;
+
+//   const destinationString = destination.join(", ");
+//   // Check if customer already exists
+//   const checkCustomerQuery = "SELECT id, customer_status FROM customers WHERE phone_number = ?";
+//   db.query(checkCustomerQuery, [phone_number], (err, results) => {
+//     if (err) {
+//       console.error("Error checking customer existence:", err);
+//       return res.status(500).json({ message: "Database error." });
+//     }
+
+//     let customerId;
+//     let customerStatus = "new"; // Default status is 'new'
+
+//     if (results.length > 0) {
+//       // Customer already exists
+//       customerId = results[0].id;
+//       if (results[0].customer_status === "existing") {
+//         customerStatus = "existing";
+//       }
+//       insertLead();
+//     } else {
+//       // Insert new customer
+//       const insertCustomerQuery = `
+//         INSERT INTO customers (
+//           name, email, phone_number, country_code,
+//           another_name, another_email, another_phone_number, customer_status
+//         )
+//         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+//       `;
+//       const customerData = [
+//         name, email, phone_number, country_code,
+//         another_name, another_email, another_phone_number, "new"
+//       ];
+//       db.query(insertCustomerQuery, customerData, (err, result) => {
+//         if (err) {
+//           console.error("Error inserting customer:", err);
+//           return res.status(500).json({ message: "Failed to add customer." });
+//         }
+//         customerId = result.insertId;
+//         insertLead();
+//       });
+//     }
+
+//     function insertLead() {
+//       const insertLeadQuery = `
+//         INSERT INTO addleads (
+//           lead_type, name, email, phone_number, country_code,
+//           primarySource, secondarysource, origincity, destination,
+//           another_name, another_email, another_phone_number,
+//           corporate_id, description, assignedSalesId, assignedSalesName,
+//           assign_to_manager, managerid, customerid, customer_status
+//         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+//       `;
+//       const leadData = [
+//         lead_type, name, email, phone_number, country_code,
+//         primarySource, secondarysource, origincity,  destinationString,
+//         another_name, another_email, another_phone_number,
+//         corporate_id ? Number(corporate_id) : null,
+//         description,
+//         assignedSalesId ? Number(assignedSalesId) : null,
+//         assignedSalesName,
+//         assign_to_manager,
+//         managerid ? Number(managerid) : null,
+//         customerId,
+//         customerStatus
+//       ];
+
+//       db.query(insertLeadQuery, leadData, (err, result) => {
+//         if (err) {
+//           console.error("Error inserting/updating lead:", err);
+//           return res.status(500).json({ message: "Failed to add lead." });
+//         }
+
+//         // --- Begin Reassign Lead Insertion ---
+//         const reassignLeadQuery = `
+//           INSERT INTO reassignleads (
+//             leadid, assignedSalesId, assignedSalesName, assign_to_manager, managerid
+//           ) VALUES (?, ?, ?, ?, ?)
+//         `;
+//         const reassignData = [
+//           result.insertId,
+//           assignedSalesId ? Number(assignedSalesId) : null,
+//           assignedSalesName,
+//           assign_to_manager,
+//           managerid ? Number(managerid) : null
+//         ];
+//         db.query(reassignLeadQuery, reassignData, (reassignErr, reassignResult) => {
+//           if (reassignErr) {
+//             console.error("Error inserting into reassignleads:", reassignErr);
+//             // We log the error but continue the flow.
+//           }
+//         });
+//         // --- End Reassign Lead Insertion ---
+
+//         // --- Begin Notification Insertion ---
+//         const notificationMessage = `${admin || ""} assigned you a Lead`;
+//         const insertNotificationQuery = `
+//           INSERT INTO notifications (
+//             employeeId, managerid, name, message, createdAt, \`read\`,status
+//           ) VALUES (?, ?, ?, ?, NOW(), 0,?)
+//         `;
+//         db.query(
+//           insertNotificationQuery,
+//           [
+//             assignedSalesId ? Number(assignedSalesId) : null, // Assigned sales employee
+//     managerid ? Number(managerid) : null, // Manager ID
+//             assign_to_manager || null,
+//             notificationMessage,
+//             "lead"
+//           ],
+//           (notificationErr, notificationResult) => {
+//             if (notificationErr) {
+//               console.error("Error inserting notification:", notificationErr);
+//               // Continue even if notification insertion fails.
+//             }
+//           }
+//         );
+//         // --- End Notification Insertion ---
+
+//         res.status(201).json({ message: "Lead added/updated successfully!", leadId: result.insertId });
+//       });
+//     }
+//   });
+// };
 
 
 exports.getAllLeads = (req, res) => {

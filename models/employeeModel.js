@@ -91,7 +91,7 @@ const getEmployeesByRole = async (role) => {
 //     });
 // };
 
-const updateEmployeeModel = (leadid, employeeName, employeeId, managerId, userId, userName, callback) => {
+const updateEmployeeModel = (leadid, employeeName, employeeId, managerId, userId, userName,status, callback) => {
   // Validate required fields.
   // if (!leadid || !employeeName || !employeeId || !managerId || !userId || !userName) {
   //   return callback(new Error('Missing required fields'));
@@ -107,27 +107,27 @@ const updateEmployeeModel = (leadid, employeeName, employeeId, managerId, userId
     // Insert a new record into reassignleads.
     const insertReassignQuery = `
       INSERT INTO reassignleads (
-        leadid, assignedSalesId, assignedSalesName, assign_to_manager, managerid
+        leadid, assignedSalesId, assignedSalesName, assign_to_manager, managerid,status
       )
-      VALUES (?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?,?)
     `;
     db.query(
       insertReassignQuery,
-      [leadid, employeeId, employeeName, userName, userId],
+      [leadid, employeeId, employeeName, userName, userId,status],
       (errReassign, reassignResult) => {
         if (errReassign) {
           return callback(errReassign);
         }
 
         // Insert a notification for the manager.
-        const notificationMessage = '(Manager) assigned you a Lead';
+        const notificationMessage = `(Manager) assigned you a ${status}`;
         const insertNotificationQuery = `
-          INSERT INTO notifications (employeeId, managerid, name, message, createdAt, \`read\`)
-          VALUES (?, ?, ?, ?, NOW(), 0)
+          INSERT INTO notifications (employeeId, managerid, name, message, createdAt, \`read\`,status)
+          VALUES (?, ?, ?, ?, NOW(), 0, ?)
         `;
         db.query(
           insertNotificationQuery,
-          [employeeId, managerId, userName, notificationMessage],
+          [employeeId, managerId, userName, notificationMessage,status],
           (errNotif, notificationResult) => {
             if (errNotif) {
               return callback(errNotif);
@@ -140,7 +140,7 @@ const updateEmployeeModel = (leadid, employeeName, employeeId, managerId, userId
   });
 };
 
-const adminupdateEmployeeModel = (leadid, employeeName, employeeId, managerId, userId, userName, callback) => {
+const adminupdateEmployeeModel = (leadid, employeeName, employeeId, managerId, userId, userName,status, callback) => {
   // Validate required fields.
   // if (!leadid || !employeeName || !employeeId || !managerId || !userId || !userName) {
   //   return callback(new Error('Missing required fields'));
@@ -156,27 +156,27 @@ const adminupdateEmployeeModel = (leadid, employeeName, employeeId, managerId, u
     // Insert a new record into reassignleads.
     const insertReassignQuery = `
       INSERT INTO reassignleads (
-        leadid, assignedSalesId, assignedSalesName, assign_to_manager, managerid
+        leadid, assignedSalesId, assignedSalesName, assign_to_manager, managerid,status
       )
-      VALUES (?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?,?)
     `;
     db.query(
       insertReassignQuery,
-      [leadid, employeeId, employeeName, userName, userId],
+      [leadid, employeeId, employeeName, userName, userId,status],
       (errReassign, reassignResult) => {
         if (errReassign) {
           return callback(errReassign);
         }
 
         // Insert a notification for the manager.
-        const notificationMessage = 'Admin assigned you a Lead';
+        const notificationMessage = `Admin assigned you a ${status}`;
         const insertNotificationQuery = `
-          INSERT INTO notifications (employeeId, managerid, name, message, createdAt, \`read\`)
-          VALUES (?, ?, ?, ?, NOW(), 0)
+          INSERT INTO notifications (employeeId, managerid, name, message, createdAt, \`read\`,status)
+          VALUES (?, ?, ?, ?, NOW(), 0,?)
         `;
         db.query(
           insertNotificationQuery,
-          [employeeId, managerId, userName, notificationMessage],
+          [employeeId, managerId, userName, notificationMessage,status],
           (errNotif, notificationResult) => {
             if (errNotif) {
               return callback(errNotif);

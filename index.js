@@ -35,7 +35,7 @@ const quotationRoutes = require("./routes/quotationRoutes");
 const tagRoutes = require('./routes/tagRoutes');
 const tagUpdateRoutes = require('./routes/tagUpdateRoute');
 const filterTagRoute = require('./routes/filterTagRoute');
-const emailRoutes = require('./routes/email');
+// const emailRoutes = require('./routes/email');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -77,7 +77,7 @@ app.use("/api/quotations", quotationRoutes);
 app.use('/api', tagRoutes);
 app.use('/api', tagUpdateRoutes);
 app.use('/api', filterTagRoute);
-app.use('/api', emailRoutes);
+// app.use('/api', emailRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);

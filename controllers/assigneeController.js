@@ -32,10 +32,32 @@
 // controllers/assigneeController.js
 const { updateAssigneeModel, getAssociatesModel } = require('../models/assigneeModel');
 
+// const updateAssignee = (req, res) => {
+//   // Destructure the required fields from the request body.
+//   // Make sure that assignedSalesId and assignedSalesName are provided.
+//   const { leadid, assignee, managerid, assignedSalesId, assignedSalesName } = req.body;
+//   console.log("Received request body:", req.body);
+
+//   updateAssigneeModel(
+//     leadid,
+//     assignee,
+//     managerid,
+//     assignedSalesId,
+//     assignedSalesName,
+//     (err, results) => {
+//       if (err) {
+//         console.error('Error in updateAssignee:', err);
+//         return res.status(500).json({ message: 'Error updating lead or inserting notification' });
+//       }
+//       res.status(200).json({ message: "Assignee updated and notification sent." });
+//     }
+//   );
+// };
+
 const updateAssignee = (req, res) => {
   // Destructure the required fields from the request body.
   // Make sure that assignedSalesId and assignedSalesName are provided.
-  const { leadid, assignee, managerid, assignedSalesId, assignedSalesName } = req.body;
+  const { leadid, assignee, managerid, assignedSalesId, assignedSalesName,status } = req.body;
   console.log("Received request body:", req.body);
 
   updateAssigneeModel(
@@ -44,6 +66,7 @@ const updateAssignee = (req, res) => {
     managerid,
     assignedSalesId,
     assignedSalesName,
+    status,
     (err, results) => {
       if (err) {
         console.error('Error in updateAssignee:', err);
@@ -53,7 +76,6 @@ const updateAssignee = (req, res) => {
     }
   );
 };
-
 
 const getAssociates = (req, res) => {
   // Get managerid from URL parameters (e.g., /associates/:managerid)

@@ -162,4 +162,51 @@ router.get("/manager-leadid/leads/:leadid/:userId", async (req, res) => {
     }
 });
 
+router.get("/sales-customers/:customerid/:userId", async (req, res) => {
+    const { customerid, userId } = req.params;
+
+    try {
+        const query = "SELECT customerid FROM addleads WHERE customerid = ? AND assignedSalesId = ?";
+        db.query(query, [customerid, userId], (err, results) => {
+            if (err) {
+                console.error("Database error:", err);
+                return res.status(500).json({ error: "Database error" });
+            }
+
+            if (results.length > 0) {
+                return res.json({ message: "Exists" });
+            } else {
+                return res.status(404).json({ error: "Customer not found" });
+            }
+        });
+    } catch (error) {
+        console.error("Server error:", error);
+        res.status(500).json({ error: "Server error" });
+    }
+});
+
+router.get("/manager-customers/:customerid/:userId", async (req, res) => {
+    const { customerid, userId } = req.params;
+
+    try {
+        const query = "SELECT customerid FROM addleads WHERE customerid = ? AND managerid = ?";
+        db.query(query, [customerid, userId], (err, results) => {
+            if (err) {
+                console.error("Database error:", err);
+                return res.status(500).json({ error: "Database error" });
+            }
+
+            if (results.length > 0) {
+                return res.json({ message: "Exists" });
+            } else {
+                return res.status(404).json({ error: "Customer not found" });
+            }
+        });
+    } catch (error) {
+        console.error("Server error:", error);
+        res.status(500).json({ error: "Server error" });
+    }
+});
+
+
 module.exports = router;

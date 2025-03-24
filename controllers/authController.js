@@ -55,7 +55,7 @@ const register = async (req, res) => {
       const token = jwt.sign(
         { id: result.insertId, email, role },
         SECRET_KEY,
-        { expiresIn: '1h' }
+        { expiresIn: '4h' }
       );
   
       res.status(201).json({
@@ -103,7 +103,7 @@ const login = async (req, res) => {
         managerId: user.managerId
       },
       SECRET_KEY,
-      { expiresIn: '1h' }
+      { expiresIn: '4h' }
     );
     
     // Return all user details in response

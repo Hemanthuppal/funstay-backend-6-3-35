@@ -31,10 +31,11 @@ const selfassignRoute = require('./routes/selfassignRoute');
 const archieveRoute = require('./routes/archieveRoute');
 const path = require("path");
 const themeRoute = require("./routes/themeRoute");
-const quotationRoutes = require("./routes/quotationRoutes");
+// const quotationRoutes = require("./routes/quotationRoutes");
 const tagRoutes = require('./routes/tagRoutes');
 const tagUpdateRoutes = require('./routes/tagUpdateRoute');
 const filterTagRoute = require('./routes/filterTagRoute');
+// const quotationRoute = require('./routes/quotationRoute');
 // const emailRoutes = require('./routes/email');
 
 const app = express();
@@ -45,6 +46,7 @@ app.use(bodyParser.json());
 app.use(cors());
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 app.use('/', authRoutes);
 app.use('/', employeeRoutes);
 app.use('/api', leadRoutes);
@@ -71,12 +73,15 @@ app.use('/api', destinationRoute);
 app.use("/api", themeRoute);
 app.use('/api', selfassignRoute);
 app.use('/api', archieveRoute);
-app.use("/uploads", express.static("uploads")); // Serve uploaded files
-app.use("/api/quotations", quotationRoutes);
+app.use("/uploads", express.static("uploads"));
+app.use('/uploads', express.static('routes/uploads'));
+ 
+// app.use("/api/quotations", quotationRoutes);
 
 app.use('/api', tagRoutes);
 app.use('/api', tagUpdateRoutes);
 app.use('/api', filterTagRoute);
+// app.use('/api', quotationRoute);
 // app.use('/api', emailRoutes);
 
 app.listen(PORT, () => {

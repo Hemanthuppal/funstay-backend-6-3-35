@@ -5,7 +5,7 @@ const db = require('../config/db');
 // Route to fetch data from addleads and travel_opportunity tables
 router.get("/fetch-data", (req, res) => {
     const query = `
-    SELECT a.*, t.destination AS travel_destination,t.quotation_id, t.created_at AS travel_created_at 
+    SELECT a.*, t.destination AS travel_destination,t.quotation_id, t.created_at AS travel_created_at, t.origincity AS travel_origincity, t.start_date, t.end_date, t.duration, t.adults_count, t.children_count, t.child_ages, t.approx_budget, t.description AS travel_description
     FROM addleads a 
     LEFT JOIN travel_opportunity t 
     ON a.leadid = t.leadid

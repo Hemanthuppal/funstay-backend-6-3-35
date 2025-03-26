@@ -57,15 +57,41 @@ const updateLead = (leadid, leadData, callback) => {
 };
 
 
+// const updateOpportunity = (leadid, opportunityData, callback) => {
+//   const query = `
+//     UPDATE travel_opportunity
+//     SET origincity = ?,destination = ?, start_date = ?, end_date = ?, duration = ?, 
+//         adults_count = ?, children_count = ?, child_ages = ?, approx_budget = ?, 
+//          notes = ?, comments = ?, reminder_setting = ?, description = ?
+//     WHERE leadid = ?`;
+
+//   db.query(query, [
+//     opportunityData.origincity,
+//     opportunityData.destination,
+//     opportunityData.start_date,
+//     opportunityData.end_date,
+//     opportunityData.duration,
+//     opportunityData.adults_count,
+//     opportunityData.children_count,
+//     opportunityData.child_ages,
+//     opportunityData.approx_budget,
+   
+//     opportunityData.notes,
+//     opportunityData.comments,
+//     opportunityData.reminder_setting,
+//     opportunityData.description,
+//     leadid,
+//   ], callback);
+// };
 const updateOpportunity = (leadid, opportunityData, callback) => {
-  const query = `
+  const updateOpportunityQuery = `
     UPDATE travel_opportunity
-    SET origincity = ?,destination = ?, start_date = ?, end_date = ?, duration = ?, 
+    SET origincity = ?, destination = ?, start_date = ?, end_date = ?, duration = ?, 
         adults_count = ?, children_count = ?, child_ages = ?, approx_budget = ?, 
-         notes = ?, comments = ?, reminder_setting = ?, description = ?
+        notes = ?, comments = ?, reminder_setting = ?, description = ?
     WHERE leadid = ?`;
 
-  db.query(query, [
+  db.query(updateOpportunityQuery, [
     opportunityData.origincity,
     opportunityData.destination,
     opportunityData.start_date,
@@ -75,14 +101,49 @@ const updateOpportunity = (leadid, opportunityData, callback) => {
     opportunityData.children_count,
     opportunityData.child_ages,
     opportunityData.approx_budget,
-   
     opportunityData.notes,
     opportunityData.comments,
     opportunityData.reminder_setting,
     opportunityData.description,
     leadid,
-  ], callback);
+  ], (err, result) => {
+    if (err) {
+      return callback(err, null);
+    }
+
+    if (result.affectedRows === 0) {
+      return callback(null, { affectedRows: 0 }); // No lead found
+    }
+
+    // Step 2: Fetch the customer ID related to this lead
+    const getCustomerIdQuery = `SELECT customerid FROM addleads WHERE leadid = ?`;
+
+    db.query(getCustomerIdQuery, [leadid], (err, leadResults) => {
+      if (err) {
+        return callback(err, null);
+      }
+
+      if (leadResults.length === 0 || !leadResults[0].customerid) {
+        return callback(null, result); // No customer associated with this lead
+      }
+
+      const customerid = leadResults[0].customerid;
+
+      // Step 3: Update the `origincity` in the `customers` table
+      const updateCustomerCityQuery = `UPDATE customers SET origincity = ? WHERE id = ?`;
+
+      db.query(updateCustomerCityQuery, [opportunityData.origincity, customerid], (err, customerUpdateResult) => {
+        if (err) {
+          return callback(err, null);
+        }
+        return callback(null, result);
+      });
+    });
+  });
 };
+
+module.exports = { updateOpportunity };
+
 
 module.exports = {
   updateLead,

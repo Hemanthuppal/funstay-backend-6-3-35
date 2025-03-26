@@ -28,7 +28,7 @@ const updateOpportunityById = (req, res) => {
     if (results.affectedRows === 0) {
       return res.status(404).json({ message: "Opportunity not found" });
     }
-    res.status(200).json({ message: "Opportunity updated successfully" });
+    res.status(200).json({ message: "Opportunity and Customer updated successfully" });
   });
 };
 

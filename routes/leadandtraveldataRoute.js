@@ -25,37 +25,114 @@ router.get("/fetch-data", (req, res) => {
     });
 });
 
+// router.put("/update-lead-customer/:leadid", (req, res) => {
+//     console.log("Request Body:", req.body); // Log the request body
+//     const leadid = req.params.leadid;
+
+//     const {
+//         lead_type,
+//         name,
+//         country_code,
+//         phone_number,
+//         email,
+//         sources,
+//         description,
+//         another_name,
+//         another_email,
+//         another_phone_number,
+//         origincity,
+//         destination,
+//         corporate_id,
+//         primaryStatus,
+//         secondaryStatus,
+//         primarySource,
+//         secondarysource,
+//     } = req.body;
+
+//     // Update the lead information
+//     const updateLeadQuery = `
+//       UPDATE addleads 
+//       SET lead_type = ?, name = ?, country_code = ?, phone_number = ?, email = ?, sources = ?, 
+//           description = ?, another_name = ?, another_email = ?, another_phone_number = ?,origincity = ?, 
+//           destination = ?, corporate_id = ?, primaryStatus = ?, secondaryStatus = ?, 
+//           primarySource = ?, secondarysource = ?
+//       WHERE leadid = ?`;
+
+//     db.query(updateLeadQuery, [
+//         lead_type, name, country_code, phone_number, email, sources, description, 
+//         another_name, another_email, another_phone_number, origincity, destination, corporate_id, 
+//         primaryStatus, secondaryStatus, primarySource, secondarysource, leadid
+//     ], (err, result) => {
+//         if (err) {
+//             console.error("Error updating addleads: ", err);
+//             return res.status(500).json({ error: "Failed to update addleads" });
+//         }
+
+//         // Fetch the customerid from the addleads table using the leadid
+//         const getCustomerIdQuery = `
+//           SELECT customerid FROM addleads WHERE leadid = ?`;
+        
+//         db.query(getCustomerIdQuery, [leadid], (err, leadResults) => {
+//             if (err) {
+//                 console.error("Error fetching customer ID: ", err);
+//                 return res.status(500).json({ error: "Failed to fetch customer ID" });
+//             }
+
+//             if (leadResults.length > 0) {
+//                 const customerid = leadResults[0].customerid; // Get the customerid from the lead
+
+//                 // Check if the customer exists and is new
+//                 const checkCustomerQuery = `
+//                   SELECT customer_status FROM customers WHERE id = ?`; // Assuming 'id' is the primary key in customers
+                
+//                 db.query(checkCustomerQuery, [customerid], (err, customerResults) => {
+//                     if (err) {
+//                         console.error("Error fetching customer: ", err);
+//                         return res.status(500).json({ error: "Failed to fetch customer data" });
+//                     }
+
+//                     if (customerResults.length > 0 && customerResults[0].customer_status === "new") {
+//                         // Update the customer information if the status is new
+//                         const updateCustomerQuery = `
+//                           UPDATE customers 
+//                           SET name = ?, country_code = ?, phone_number = ?, email = ?
+//                           WHERE id = ?`; // Assuming 'id' is the primary key in customers
+
+//                         db.query(updateCustomerQuery, [name, country_code, phone_number, email, customerid], (err, customerUpdateResult) => {
+//                             if (err) {
+//                                 console.error("Error updating customers: ", err);
+//                                 return res.status(500).json({ error: "Failed to update customers" });
+//                             }
+//                             return res.json({ message: "Lead and Customer updated successfully" });
+//                         });
+//                     } else {
+//                         return res.json({ message: "Lead updated successfully, no customer update needed" });
+//                     }
+//                 });
+//             } else {
+//                 return res.status(404).json({ error: "No lead found with the given leadid" });
+//             }
+//         });
+//     });
+// });
+
 router.put("/update-lead-customer/:leadid", (req, res) => {
-    console.log("Request Body:", req.body); // Log the request body
+    console.log("Request Body:", req.body);
     const leadid = req.params.leadid;
 
     const {
-        lead_type,
-        name,
-        country_code,
-        phone_number,
-        email,
-        sources,
-        description,
-        another_name,
-        another_email,
-        another_phone_number,
-        origincity,
-        destination,
-        corporate_id,
-        primaryStatus,
-        secondaryStatus,
-        primarySource,
-        secondarysource,
+        lead_type, name, country_code, phone_number, email, sources, description, 
+        another_name, another_email, another_phone_number, origincity, destination, 
+        corporate_id, primaryStatus, secondaryStatus, primarySource, secondarysource
     } = req.body;
 
-    // Update the lead information
+    // Step 1: Update the addleads table
     const updateLeadQuery = `
       UPDATE addleads 
       SET lead_type = ?, name = ?, country_code = ?, phone_number = ?, email = ?, sources = ?, 
-          description = ?, another_name = ?, another_email = ?, another_phone_number = ?,origincity = ?, 
-          destination = ?, corporate_id = ?, primaryStatus = ?, secondaryStatus = ?, 
-          primarySource = ?, secondarysource = ?
+          description = ?, another_name = ?, another_email = ?, another_phone_number = ?, 
+          origincity = ?, destination = ?, corporate_id = ?, primaryStatus = ?, 
+          secondaryStatus = ?, primarySource = ?, secondarysource = ?
       WHERE leadid = ?`;
 
     db.query(updateLeadQuery, [
@@ -68,49 +145,61 @@ router.put("/update-lead-customer/:leadid", (req, res) => {
             return res.status(500).json({ error: "Failed to update addleads" });
         }
 
-        // Fetch the customerid from the addleads table using the leadid
-        const getCustomerIdQuery = `
-          SELECT customerid FROM addleads WHERE leadid = ?`;
-        
+        // Step 2: Get the customer ID from the addleads table
+        const getCustomerIdQuery = `SELECT customerid FROM addleads WHERE leadid = ?`;
+
         db.query(getCustomerIdQuery, [leadid], (err, leadResults) => {
             if (err) {
                 console.error("Error fetching customer ID: ", err);
                 return res.status(500).json({ error: "Failed to fetch customer ID" });
             }
 
-            if (leadResults.length > 0) {
-                const customerid = leadResults[0].customerid; // Get the customerid from the lead
+            if (leadResults.length === 0) {
+                return res.status(404).json({ error: "No lead found with the given leadid" });
+            }
 
-                // Check if the customer exists and is new
-                const checkCustomerQuery = `
-                  SELECT customer_status FROM customers WHERE id = ?`; // Assuming 'id' is the primary key in customers
-                
-                db.query(checkCustomerQuery, [customerid], (err, customerResults) => {
+            const customerid = leadResults[0].customerid;
+
+            if (customerid) {
+                // Step 3: Update only the origincity in customers table
+                const updateCustomerCityQuery = `UPDATE customers SET origincity = ? WHERE id = ?`;
+
+                db.query(updateCustomerCityQuery, [origincity, customerid], (err, customerUpdateResult) => {
                     if (err) {
-                        console.error("Error fetching customer: ", err);
-                        return res.status(500).json({ error: "Failed to fetch customer data" });
+                        console.error("Error updating customer origincity: ", err);
+                        return res.status(500).json({ error: "Failed to update customer origincity" });
                     }
+                    console.log("Customer origincity updated successfully.");
 
-                    if (customerResults.length > 0 && customerResults[0].customer_status === "new") {
-                        // Update the customer information if the status is new
-                        const updateCustomerQuery = `
-                          UPDATE customers 
-                          SET name = ?, country_code = ?, phone_number = ?, email = ?
-                          WHERE id = ?`; // Assuming 'id' is the primary key in customers
+                    // Step 4: Check if the customer is 'new' and update other details
+                    const checkCustomerQuery = `SELECT customer_status FROM customers WHERE id = ?`;
 
-                        db.query(updateCustomerQuery, [name, country_code, phone_number, email, customerid], (err, customerUpdateResult) => {
-                            if (err) {
-                                console.error("Error updating customers: ", err);
-                                return res.status(500).json({ error: "Failed to update customers" });
-                            }
-                            return res.json({ message: "Lead and Customer updated successfully" });
-                        });
-                    } else {
-                        return res.json({ message: "Lead updated successfully, no customer update needed" });
-                    }
+                    db.query(checkCustomerQuery, [customerid], (err, customerResults) => {
+                        if (err) {
+                            console.error("Error fetching customer status: ", err);
+                            return res.status(500).json({ error: "Failed to fetch customer data" });
+                        }
+
+                        if (customerResults.length > 0 && customerResults[0].customer_status === "new") {
+                            const updateCustomerQuery = `
+                              UPDATE customers 
+                              SET name = ?, country_code = ?, phone_number = ?, email = ?
+                              WHERE id = ?`;
+
+                            db.query(updateCustomerQuery, [name, country_code, phone_number, email, customerid], (err, customerUpdateResult) => {
+                                if (err) {
+                                    console.error("Error updating customers: ", err);
+                                    return res.status(500).json({ error: "Failed to update customers" });
+                                }
+                                return res.json({ message: "Lead and Customer updated successfully" });
+                            });
+                        } else {
+                            return res.json({ message: "Lead updated successfully, customer city updated if necessary" });
+                        }
+                    });
                 });
             } else {
-                return res.status(404).json({ error: "No lead found with the given leadid" });
+                return res.json({ message: "Lead updated successfully, no customer update needed" });
             }
         });
     });

@@ -135,6 +135,45 @@ createLead: (data, callback) => {
     // Execute the query
     db.query(query, values, callback);
   },
+//   updateLeadStatus: (leadid, primaryStatus, secondaryStatus, callback) => {
+//     let query = 'UPDATE addleads SET ';
+//     const values = [];
+  
+//     // Ensure both statuses are being updated properly
+//     if (primaryStatus !== undefined) {
+//         query += 'primaryStatus = ?';
+//         values.push(primaryStatus);
+//     }
+  
+//     if (secondaryStatus !== undefined) {
+//         if (values.length > 0) {
+//             query += ', ';
+//         }
+//         query += 'secondaryStatus = ?';
+//         values.push(secondaryStatus);
+//     }
+
+//     // If no values are being updated, return early to prevent an invalid query
+//     if (values.length === 0) {
+//         return callback(new Error("No valid fields to update"), null);
+//     }
+
+//     // Add the WHERE clause
+//     query += ' WHERE leadid = ?';
+//     values.push(leadid);
+  
+//     // Execute the query
+//     db.query(query, values, (err, result) => {
+//         if (err) {
+//             console.error("Database error while updating lead status:", err);
+//             return callback(err, null);
+//         }
+//         callback(null, result);
+//     });
+// },
+
+
+
   updateLeadStatusOpp: (leadid, status, callback) => {
     const query = 'UPDATE addleads SET status = ? WHERE leadid = ?';
     db.query(query, [status, leadid], callback);

@@ -132,6 +132,70 @@ router.put('/api/customers/:id', (req, res) => {
 
 
 
+// router.put('/api/travel-opportunities/:id', (req, res) => {
+//   const { id } = req.params;
+//   const {
+//     origincity,
+//     destination,
+//     start_date,
+//     end_date,
+//     duration,
+//     adults_count,
+//     children_count,
+//     child_ages,
+//     approx_budget,
+//     reminder_setting,
+//     notes,
+//   } = req.body;
+
+//   const query = `
+//     UPDATE travel_opportunity
+//     SET 
+//     origincity = ?,
+//       destination = ?, 
+//       start_date = ?, 
+//       end_date = ?, 
+//       duration = ?, 
+//       adults_count = ?, 
+//       children_count = ?, 
+//       child_ages = ?, 
+//       approx_budget = ?, 
+//       reminder_setting = ?, 
+//       notes = ? 
+//     WHERE id = ?
+//   `;
+
+//   db.query(
+//     query,
+//     [
+//       origincity,
+//       destination,
+//       start_date,
+//       end_date,
+//       duration,
+//       adults_count,
+//       children_count,
+//       child_ages,
+//       approx_budget,
+//       reminder_setting,
+//       notes,
+//       id,
+//     ],
+//     (err, results) => {
+//       if (err) {
+//         console.error('Error updating travel opportunity:', err);
+//         return res.status(500).json({ message: 'Database error.' });
+//       }
+
+//       if (results.affectedRows === 0) {
+//         return res.status(404).json({ message: 'Travel opportunity not found.' });
+//       }
+
+//       res.status(200).json({ message: 'Travel opportunity updated successfully.' });
+//     }
+//   );
+// });
+
 router.put('/api/travel-opportunities/:id', (req, res) => {
   const { id } = req.params;
   const {
@@ -148,10 +212,11 @@ router.put('/api/travel-opportunities/:id', (req, res) => {
     notes,
   } = req.body;
 
-  const query = `
+  // Update travel_opportunity table
+  const queryUpdateTravelOpportunity = `
     UPDATE travel_opportunity
     SET 
-    origincity = ?,
+      origincity = ?,
       destination = ?, 
       start_date = ?, 
       end_date = ?, 
@@ -166,7 +231,7 @@ router.put('/api/travel-opportunities/:id', (req, res) => {
   `;
 
   db.query(
-    query,
+    queryUpdateTravelOpportunity,
     [
       origincity,
       destination,
@@ -191,10 +256,25 @@ router.put('/api/travel-opportunities/:id', (req, res) => {
         return res.status(404).json({ message: 'Travel opportunity not found.' });
       }
 
-      res.status(200).json({ message: 'Travel opportunity updated successfully.' });
+      // Update customers table
+      const queryUpdateCustomer = `
+        UPDATE customers
+        SET origincity = ?
+        WHERE id = (SELECT customerid FROM travel_opportunity WHERE id = ?)
+      `;
+
+      db.query(queryUpdateCustomer, [origincity, id], (err, results) => {
+        if (err) {
+          console.error('Error updating customer:', err);
+          return res.status(500).json({ message: 'Database error while updating customer.' });
+        }
+
+        res.status(200).json({ message: 'Travel opportunity and customer updated successfully.' });
+      });
     }
   );
 });
+
 
 
 module.exports = router;

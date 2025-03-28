@@ -41,115 +41,229 @@ const imapConfig = {
 };
 
 // Function to Fetch and Store Today's Emails for Recognized Receiver Emails
+// const fetchAndStoreEmails = async () => {
+//     return new Promise((resolve, reject) => {
+//         // Step 1: Get the distinct receiver emails from the database
+//         const receiverQuery = 'SELECT DISTINCT receiver_email FROM emails';
+//         db.query(receiverQuery, (err, receivers) => {
+//             if (err) {
+//                 console.error('Database error fetching receivers:', err);
+//                 return reject(err);
+//             }
+
+//             // Convert receiver emails into a Set for faster lookup
+//             const receiverSet = new Set(receivers.map(row => row.receiver_email));
+
+//             const imap = new Imap(imapConfig);
+
+//             imap.once('ready', () => {
+//                 imap.openBox('INBOX', false, (err, box) => {
+//                     if (err) {
+//                         console.error('Error opening inbox:', err);
+//                         imap.end();
+//                         return reject(err);
+//                     }
+
+//                     // Get today's date in IMAP format (DD-MMM-YYYY)
+//                     const today = new Date();
+//                     const formattedDate = today.toLocaleString('en-US', {
+//                         day: '2-digit',
+//                         month: 'short',
+//                         year: 'numeric',
+//                     }).replace(',', '');
+
+//                     console.log(`Fetching emails for today: ${formattedDate}`);
+
+//                     // Search for today's emails
+//                     imap.search([['ON', formattedDate]], (err, results) => {
+//                         if (err) {
+//                             console.error('IMAP search error:', err);
+//                             imap.end();
+//                             return reject(err);
+//                         }
+
+//                         if (!results.length) {
+//                             console.log('No new emails found for today.');
+//                             imap.end();
+//                             return resolve('No new emails.');
+//                         }
+
+//                         const f = imap.fetch(results, { bodies: '' });
+
+//                         f.on('message', (msg) => {
+//                             msg.on('body', (stream) => {
+//                                 simpleParser(stream)
+//                                     .then((parsed) => {
+//                                         const { from, subject, text, messageId } = parsed;
+//                                         const senderEmail = from.value[0].address; // The email of the sender
+
+//                                         // Step 2: Check if sender exists in receiverSet
+//                                         if (!receiverSet.has(senderEmail)) {
+//                                             console.log(`Ignored email from unrecognized sender: ${senderEmail}`);
+//                                             return;
+//                                         }
+
+//                                         // Step 3: Check if email already exists in the database
+//                                         const checkQuery = 'SELECT COUNT(*) AS count FROM emails WHERE message_id = ?';
+//                                         db.query(checkQuery, [messageId], (err, result) => {
+//                                             if (err) {
+//                                                 console.error('Database error checking for duplicate email:', err);
+//                                                 return;
+//                                             }
+
+//                                             if (result[0].count === 0) {
+//                                                 // Step 4: Store email in MySQL with type 'received'
+//                                                 const insertQuery =
+//                                                     'INSERT INTO emails (message_id, receiver_email, subject, text, type) VALUES (?, ?, ?, ?, ?)';
+//                                                 db.query(
+//                                                     insertQuery,
+//                                                     [messageId, senderEmail, subject, text, 'received'], // Include message_id
+//                                                     (err) => {
+//                                                         if (err) console.error('Failed to store email:', err);
+//                                                         else console.log(`Email from ${senderEmail} stored successfully.`);
+//                                                     }
+//                                                 );
+//                                             } else {
+//                                                 console.log('Duplicate email ignored:', messageId);
+//                                             }
+//                                         });
+//                                     })
+//                                     .catch((err) => console.error('Error parsing email:', err));
+//                             });
+//                         });
+
+//                         f.once('error', (ex) => {
+//                             console.error('Fetch error:', ex);
+//                             reject(ex);
+//                         });
+
+//                         f.once('end', () => {
+//                             console.log('Finished fetching today’s emails.');
+//                             imap.end();
+//                         });
+//                     });
+//                 });
+//             });
+
+//             imap.once('error', (err) => {
+//                 console.error('IMAP error:', err);
+//                 reject(err);
+//             });
+
+//             imap.connect();
+//         });
+//     });
+// };
+
 const fetchAndStoreEmails = async () => {
     return new Promise((resolve, reject) => {
-        // Step 1: Get the distinct receiver emails from the database
-        const receiverQuery = 'SELECT DISTINCT receiver_email FROM emails';
-        db.query(receiverQuery, (err, receivers) => {
-            if (err) {
-                console.error('Database error fetching receivers:', err);
-                return reject(err);
-            }
+        // Get all known receiver emails
+        db.query('SELECT DISTINCT receiver_email FROM emails', (err, receivers) => {
+            if (err) return reject(err);
 
-            // Convert receiver emails into a Set for faster lookup
-            const receiverSet = new Set(receivers.map(row => row.receiver_email));
-
+            const knownReceivers = new Set(receivers.map(r => r.receiver_email.toLowerCase().trim()));
             const imap = new Imap(imapConfig);
 
             imap.once('ready', () => {
-                imap.openBox('INBOX', false, (err, box) => {
-                    if (err) {
-                        console.error('Error opening inbox:', err);
-                        imap.end();
-                        return reject(err);
-                    }
-
-                    // Get today's date in IMAP format (DD-MMM-YYYY)
-                    const today = new Date();
-                    const formattedDate = today.toLocaleString('en-US', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric',
-                    }).replace(',', '');
-
-                    console.log(`Fetching emails for today: ${formattedDate}`);
+                imap.openBox('INBOX', false, (err) => {
+                    if (err) return reject(err);
 
                     // Search for today's emails
-                    imap.search([['ON', formattedDate]], (err, results) => {
-                        if (err) {
-                            console.error('IMAP search error:', err);
-                            imap.end();
-                            return reject(err);
-                        }
+                    const date = new Date().toLocaleString('en-US', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric'
+                    }).replace(',', '');
 
-                        if (!results.length) {
-                            console.log('No new emails found for today.');
-                            imap.end();
-                            return resolve('No new emails.');
-                        }
+                    imap.search([['ON', date]], (err, uids) => {
+                        if (err) return reject(err);
+                        if (!uids.length) return resolve('No new emails');
 
-                        const f = imap.fetch(results, { bodies: '' });
+                        const fetch = imap.fetch(uids, { bodies: '' });
 
-                        f.on('message', (msg) => {
+                        fetch.on('message', (msg) => {
+                            let emailData = {};
+                            
                             msg.on('body', (stream) => {
-                                simpleParser(stream)
-                                    .then((parsed) => {
-                                        const { from, subject, text, messageId } = parsed;
-                                        const senderEmail = from.value[0].address; // The email of the sender
+                                simpleParser(stream, (err, parsed) => {
+                                    if (err) return console.error('Parse error:', err);
 
-                                        // Step 2: Check if sender exists in receiverSet
-                                        if (!receiverSet.has(senderEmail)) {
-                                            console.log(`Ignored email from unrecognized sender: ${senderEmail}`);
-                                            return;
-                                        }
+                                    // Extract sender email
+                                    const sender = parsed.from?.value?.[0]?.address;
+                                    if (!sender || !knownReceivers.has(sender.toLowerCase().trim())) {
+                                        return; // Skip unknown senders
+                                    }
 
-                                        // Step 3: Check if email already exists in the database
-                                        const checkQuery = 'SELECT COUNT(*) AS count FROM emails WHERE message_id = ?';
-                                        db.query(checkQuery, [messageId], (err, result) => {
-                                            if (err) {
-                                                console.error('Database error checking for duplicate email:', err);
-                                                return;
-                                            }
+                                    // Get clean plain text content
+                                    // Inside the simpleParser callback:
+let cleanText = '';
+if (parsed.text) {
+  // Preserve original formatting
+  cleanText = parsed.text
+    .replace(/\r\n/g, '\n')  // Normalize line endings
+    .replace(/\t/g, '    '); // Convert tabs to spaces
+} else if (parsed.html) {
+  // Convert HTML to plain text while preserving some formatting
+  cleanText = parsed.html
+    .replace(/<br\s*\/?>/gi, '\n')  // Convert <br> to newlines
+    .replace(/<\/p>/gi, '\n\n')     // Convert paragraph ends to double newlines
+    .replace(/<[^>]+>/g, '')        // Remove all other HTML tags
+    .replace(/&nbsp;/g, ' ')        // Convert non-breaking spaces
+    .replace(/ +/g, ' ')            // Collapse multiple spaces
+    .trim();
+}
 
+// Then store in emailData:
+emailData = {
+  message_id: parsed.messageId,
+  receiver_email: sender,
+  subject: parsed.subject || '(No subject)',
+  text: cleanText || '[No text content]',
+  type: 'received'
+};
+
+                                    // Check if email exists
+                                    db.query(
+                                        'SELECT COUNT(*) AS count FROM emails WHERE message_id = ?',
+                                        [emailData.message_id],
+                                        (err, result) => {
+                                            if (err) return console.error('DB check error:', err);
+                                            
                                             if (result[0].count === 0) {
-                                                // Step 4: Store email in MySQL with type 'received'
-                                                const insertQuery =
-                                                    'INSERT INTO emails (message_id, receiver_email, subject, text, type) VALUES (?, ?, ?, ?, ?)';
+                                                // Store in database
                                                 db.query(
-                                                    insertQuery,
-                                                    [messageId, senderEmail, subject, text, 'received'], // Include message_id
+                                                    'INSERT INTO emails SET ?',
+                                                    emailData,
                                                     (err) => {
-                                                        if (err) console.error('Failed to store email:', err);
-                                                        else console.log(`Email from ${senderEmail} stored successfully.`);
+                                                        if (err) {
+                                                            console.error('Store error:', err);
+                                                        } else {
+                                                            console.log('Stored email:', {
+                                                                from: emailData.receiver_email,
+                                                                subject: emailData.subject,
+                                                                textLength: emailData.text.length
+                                                            });
+                                                        }
                                                     }
                                                 );
-                                            } else {
-                                                console.log('Duplicate email ignored:', messageId);
                                             }
-                                        });
-                                    })
-                                    .catch((err) => console.error('Error parsing email:', err));
+                                        }
+                                    );
+                                });
                             });
                         });
 
-                        f.once('error', (ex) => {
-                            console.error('Fetch error:', ex);
-                            reject(ex);
+                        fetch.once('end', () => {
+                            imap.end();
+                            resolve('Processing completed');
                         });
 
-                        f.once('end', () => {
-                            console.log('Finished fetching today’s emails.');
-                            imap.end();
-                        });
+                        fetch.once('error', reject);
                     });
                 });
             });
 
-            imap.once('error', (err) => {
-                console.error('IMAP error:', err);
-                reject(err);
-            });
-
+            imap.once('error', reject);
             imap.connect();
         });
     });
@@ -192,15 +306,15 @@ router.post("/upload-quotation", upload.single("file"), async (req, res) => {
                     return reject("Database error.");
                 }
         
-                let nextQuotationId = "quoo1"; // Default if no valid quotation_id exists
+                let nextQuotationId = "Qu001"; // Default if no valid quotation_id exists
         
                 if (result.length > 0 && result[0].quotation_id) {
                     const lastQuotationId = result[0].quotation_id;
-                    const match = lastQuotationId.match(/quoo(\d+)/); // Extract number
+                    const match = lastQuotationId.match(/Qu00(\d+)/); // Extract number
         
                     if (match) {
                         let lastNumber = parseInt(match[1], 10); // Convert extracted number to integer
-                        nextQuotationId = `quoo${lastNumber + 1}`; // Increment for new ID
+                        nextQuotationId = `Qu00${lastNumber + 1}`; // Increment for new ID
                     }
                 }
         
@@ -330,67 +444,236 @@ const transporter = nodemailer.createTransport({
 
 
 
-  router.post("/post-from-email", upload.single("file"), async (req, res) => {
-    const { leadid, receiver_email, subject, text, type, reply_to_message_id } = req.body;
-    const file_path = req.file ? `/uploads/${req.file.filename}` : null;
+//   router.post("/post-from-email", upload.single("file"), async (req, res) => {
+//     const { leadid, receiver_email, subject, text, type, reply_to_message_id } = req.body;
+//     const file_path = req.file ? `/uploads/${req.file.filename}` : null;
   
-    if (!leadid || !receiver_email || !subject || !text || !type) {
-      return res.status(400).json({ error: "Missing required fields." });
-    }
+//     if (!leadid || !receiver_email || !subject || !text || !type) {
+//       return res.status(400).json({ error: "Missing required fields." });
+//     }
   
+//     try {
+//       // Prepend "Re:" to the subject if it's a reply
+//       const finalSubject = reply_to_message_id && !subject.startsWith("Re:") ? `Re: ${subject}` : subject;
+  
+//       // Format the email text for replies
+//       let finalText = text;
+//       if (reply_to_message_id) {
+//         finalText = `
+//   ---
+  
+//   **${receiver_email}**  
+//   ${text}
+  
+//   ---
+  
+//   On ${new Date().toLocaleString()}, ${receiver_email} wrote:
+//   > ${text}
+//         `;
+//       }
+  
+//       // Send Email
+//       const mailOptions = {
+//         from: "uppalahemanth4@gmail.com",
+//         to: receiver_email,
+//         subject: finalSubject,
+//         text: finalText,
+//         attachments: file_path ? [{ path: path.join(uploadDir, req.file.filename) }] : [],
+//         headers: reply_to_message_id ? { 'In-Reply-To': reply_to_message_id, 'References': reply_to_message_id } : {},
+//       };
+  
+//       const info = await transporter.sendMail(mailOptions);
+  
+//       // Save Email to Database
+//       const sql = `
+//         INSERT INTO emails (leadid, receiver_email, subject, text, file_path, type, email_sent, message_id) 
+//         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+//       `;
+//       const values = [leadid, receiver_email, finalSubject, finalText, file_path, type, 1, info.messageId];
+  
+//       db.query(sql, values, (err, result) => {
+//         if (err) {
+//           console.error("Database Error (Inserting Email Record):", err);
+//           return res.status(500).json({ error: "Database insert error." });
+//         }
+  
+//         res.json({ message: "Email sent and stored successfully!", message_id: info.messageId });
+//       });
+//     } catch (error) {
+//       console.error("Error sending email:", error);
+//       res.status(500).json({ error: "Error sending email.", details: error.message });
+//     }
+//   });
+
+//   router.post("/post-from-email", upload.single("file"), async (req, res) => {
+//     const { leadid, receiver_email, subject, text, type, reply_to_message_id, is_plain_text } = req.body;
+//     const file_path = req.file ? `/uploads/${req.file.filename}` : null;
+  
+//     if (!leadid || !receiver_email || !text || !type) {
+//       return res.status(400).json({ error: "Missing required fields." });
+//     }
+  
+//     try {
+//       // Use exactly the text received - no formatting
+//       const finalText = text;
+  
+//       const mailOptions = {
+//         from: "uppalahemanth4@gmail.com",
+//         to: receiver_email,
+//         subject: subject,
+//         text: finalText, // Plain text only
+//         attachments: file_path ? [{ path: path.join(uploadDir, req.file.filename) }] : [],
+//         // Only add threading headers if not a plain text message
+//         headers: (!is_plain_text && reply_to_message_id) ? { 
+//           'In-Reply-To': reply_to_message_id, 
+//           'References': reply_to_message_id 
+//         } : {}
+//       };
+  
+//       const info = await transporter.sendMail(mailOptions);
+  
+//       const sql = `
+//         INSERT INTO emails (leadid, receiver_email, subject, text, file_path, type, email_sent, message_id) 
+//         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+//       `;
+//       const values = [leadid, receiver_email, subject, finalText, file_path, type, 1, info.messageId];
+  
+//       db.query(sql, values, (err, result) => {
+//         if (err) {
+//           console.error("Database Error:", err);
+//           return res.status(500).json({ error: "Database error." });
+//         }
+//         res.json({ message: "Email sent successfully!", message_id: info.messageId });
+//       });
+//     } catch (error) {
+//       console.error("Error sending email:", error);
+//       res.status(500).json({ error: "Email sending failed." });
+//     }
+//   });
+
+
+router.get("/latest-quotation", async (req, res) => {
     try {
-      // Prepend "Re:" to the subject if it's a reply
-      const finalSubject = reply_to_message_id && !subject.startsWith("Re:") ? `Re: ${subject}` : subject;
-  
-      // Format the email text for replies
-      let finalText = text;
-      if (reply_to_message_id) {
-        finalText = `
-  ---
-  
-  **${receiver_email}**  
-  ${text}
-  
-  ---
-  
-  On ${new Date().toLocaleString()}, ${receiver_email} wrote:
-  > ${text}
-        `;
-      }
-  
-      // Send Email
-      const mailOptions = {
-        from: "uppalahemanth4@gmail.com",
-        to: receiver_email,
-        subject: finalSubject,
-        text: finalText,
-        attachments: file_path ? [{ path: path.join(uploadDir, req.file.filename) }] : [],
-        headers: reply_to_message_id ? { 'In-Reply-To': reply_to_message_id, 'References': reply_to_message_id } : {},
-      };
-  
-      const info = await transporter.sendMail(mailOptions);
-  
-      // Save Email to Database
-      const sql = `
-        INSERT INTO emails (leadid, receiver_email, subject, text, file_path, type, email_sent, message_id) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `;
-      const values = [leadid, receiver_email, finalSubject, finalText, file_path, type, 1, info.messageId];
-  
-      db.query(sql, values, (err, result) => {
-        if (err) {
-          console.error("Database Error (Inserting Email Record):", err);
-          return res.status(500).json({ error: "Database insert error." });
-        }
-  
-        res.json({ message: "Email sent and stored successfully!", message_id: info.messageId });
-      });
+        db.query(
+            `SELECT quotation_id FROM emails WHERE quotation_id IS NOT NULL ORDER BY id DESC LIMIT 1`,
+            (err, results) => {
+                if (err) {
+                    console.error("Database Error:", err);
+                    return res.status(500).json({ error: "Database fetch error." });
+                }
+
+                let newQuotationId = "Qu001"; // Default if no valid quotation_id exists
+
+                if (results.length > 0 && results[0].quotation_id) {
+                    const lastQuotationId = results[0].quotation_id;
+                    const lastNumber = parseInt(lastQuotationId.replace("Qu00", ""), 10);
+                    newQuotationId = `Qu00${lastNumber + 1}`;
+                }
+
+                res.json({ quotation_id: newQuotationId });
+            }
+        );
     } catch (error) {
-      console.error("Error sending email:", error);
-      res.status(500).json({ error: "Error sending email.", details: error.message });
+        console.error("Error fetching latest quotation:", error);
+        res.status(500).json({ error: "Failed to fetch latest quotation." });
     }
-  });
+});
+
+
   
+router.post("/post-from-email", upload.single("file"), async (req, res) => {
+    const { leadid, receiver_email, subject, text, type, reply_to_message_id, is_plain_text, quotation_id } = req.body;
+    const file_path = req.file ? `/uploads/${req.file.filename}` : null;
+
+    if (!leadid || !receiver_email || (!text && !file_path) || !type) {
+        return res.status(400).json({ error: "Missing required fields." });
+    }
+
+    try {
+        let newQuotationId = quotation_id; // Use provided quotation_id if available
+
+        if (!newQuotationId && file_path) {
+            // Fetch latest valid quotation_id
+            const quotationResult = await new Promise((resolve, reject) => {
+                db.query(
+                    `SELECT quotation_id FROM emails WHERE quotation_id IS NOT NULL ORDER BY id DESC LIMIT 1`,
+                    (err, results) => {
+                        if (err) reject(err);
+                        else resolve(results);
+                    }
+                );
+            });
+
+            if (quotationResult.length > 0 && quotationResult[0].quotation_id) {
+                const lastQuotationId = quotationResult[0].quotation_id;
+                const lastNumber = parseInt(lastQuotationId.replace("Qu00", ""), 10);
+                newQuotationId = `Qu00${lastNumber + 1}`;
+            } else {
+                newQuotationId = "Qu001";
+            }
+        }
+
+        const mailOptions = {
+            from: "uppalahemanth4@gmail.com",
+            to: receiver_email,
+            subject: subject,
+            text: text || "",
+            attachments: file_path ? [{ path: path.join(uploadDir, req.file.filename) }] : [],
+            headers: (!is_plain_text && reply_to_message_id) ? {
+                'In-Reply-To': reply_to_message_id,
+                'References': reply_to_message_id
+            } : {}
+        };
+
+        const info = await transporter.sendMail(mailOptions);
+
+        const sql = `
+            INSERT INTO emails (leadid, receiver_email, subject, text, file_path, type, email_sent, message_id, quotation_id) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+        const values = [
+            leadid,
+            receiver_email,
+            subject,
+            text || "",
+            file_path,
+            type,
+            1,
+            info.messageId,
+            newQuotationId
+        ];
+
+        db.query(sql, values, (err, result) => {
+            if (err) {
+                console.error("Database Error:", err);
+                return res.status(500).json({ error: "Database error." });
+            }
+
+            // ✅ Update `quotation_id` in `travel_opportunity` where `leadid` matches
+            const updateQuery = `UPDATE travel_opportunity SET quotation_id = ? WHERE leadid = ?`;
+            db.query(updateQuery, [newQuotationId, leadid], (updateErr, updateResult) => {
+                if (updateErr) {
+                    console.error("Error updating travel_opportunity:", updateErr);
+                    return res.status(500).json({ error: "Failed to update quotation_id in travel_opportunity." });
+                }
+
+                res.json({ 
+                    message: "Email sent successfully!", 
+                    message_id: info.messageId, 
+                    quotation_id: newQuotationId 
+                });
+            });
+        });
+
+    } catch (error) {
+        console.error("Error sending email:", error);
+        res.status(500).json({ error: "Email sending failed." });
+    }
+});
+
+
+
+
 
 
 

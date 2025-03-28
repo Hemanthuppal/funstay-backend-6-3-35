@@ -274,15 +274,16 @@ exports.managercreateLead = (req, res) => {
         const notificationMessage = `${admin || ""} assigned you a Lead`;
         const insertNotificationQuery = `
           INSERT INTO notifications (
-            employeeId, managerid, name, message, createdAt, \`read\`,status
-          ) VALUES (?, ?, ?, ?, NOW(), 0,?)
+            employeeId, managerid, name,leadid, message, createdAt, \`read\`,status
+          ) VALUES (?, ?, ?, ?,?, NOW(), 0,?)
         `;
         db.query(
           insertNotificationQuery,
           [
             assignedSalesId ? Number(assignedSalesId) : null, 
-            manager_id ? Number(manager_id) : null,
-            assignedSalesName,
+            null,
+            assign_to_manager,
+            result.insertId,
             notificationMessage,
             "lead"
           ],
@@ -424,8 +425,8 @@ exports.admincreateLead = (req, res) => {
      const notificationMessage = ` Admin assigned you a Lead`;
      const insertNotificationQuery = `
        INSERT INTO notifications (
-         employeeId, managerid, name, message, createdAt, \`read\`, status
-       ) VALUES (?, ?, ?, ?, NOW(), 0, ?)
+         employeeId, managerid, name,leadid, message, createdAt, \`read\`, status
+       ) VALUES (?, ?, ?, ?,?, NOW(), 0, ?)
      `;
 
      db.query(
@@ -434,6 +435,7 @@ exports.admincreateLead = (req, res) => {
          null,
          managerid ? parseInt(managerid, 10) || null : null,
          assign_to_manager || null,
+         result.insertId,
          notificationMessage,
          "lead"
        ],

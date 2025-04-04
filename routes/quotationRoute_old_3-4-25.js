@@ -30,12 +30,9 @@ const upload = multer({ storage });
 
 
 // IMAP Configuration for Receiving Emails
-
-
-
 const imapConfig = {
-    user: 'iiiqbetsvarnaaz@gmail.com', // Replace with your admin email
-    password: 'rbdy vard mzit ybse', // Replace with your app password
+    user: 'uppalahemanth4@gmail.com', // Replace with your admin email
+    password: 'oimoftsgtwradkux', // Replace with your app password
     host: 'imap.gmail.com',
     port: 993,
     tls: true,
@@ -158,174 +155,6 @@ const imapConfig = {
 //     });
 // };
 
-// const fetchAndStoreEmails = async () => {
-//     return new Promise((resolve, reject) => {
-//         // Get all known receiver emails
-//         db.query('SELECT DISTINCT receiver_email FROM emails', (err, receivers) => {
-//             if (err) return reject(err);
-
-//             const knownReceivers = new Set(receivers.map(r => r.receiver_email.toLowerCase().trim()));
-//             const imap = new Imap(imapConfig);
-
-//             imap.once('ready', () => {
-//                 imap.openBox('INBOX', false, (err) => {
-//                     if (err) return reject(err);
-
-//                     // Search for today's emails
-//                     const date = new Date().toLocaleString('en-US', {
-//                         day: '2-digit',
-//                         month: 'short',
-//                         year: 'numeric'
-//                     }).replace(',', '');
-
-//                     imap.search([['ON', date]], (err, uids) => {
-//                         if (err) return reject(err);
-//                         if (!uids.length) return resolve('No new emails');
-
-//                         const fetch = imap.fetch(uids, { bodies: '' });
-//                         let processedCount = 0;
-
-//                         fetch.on('message', (msg) => {
-//                             let emailData = {};
-
-//                             msg.on('body', (stream) => {
-//                                 simpleParser(stream, (err, parsed) => {
-//                                     if (err) return console.error('Parse error:', err);
-
-//                                     // Extract sender email
-//                                     const sender = parsed.from?.value?.[0]?.address;
-//                                     if (!sender || !knownReceivers.has(sender.toLowerCase().trim())) {
-//                                         return; // Skip unknown senders
-//                                     }
-
-//                                     // Get clean plain text content
-//                                     let cleanText = '';
-//                                     if (parsed.text) {
-//                                         cleanText = parsed.text
-//                                             .replace(/\r\n/g, '\n')
-//                                             .replace(/\t/g, '    ');
-//                                     } else if (parsed.html) {
-//                                         cleanText = parsed.html
-//                                             .replace(/<br\s*\/?>/gi, '\n')
-//                                             .replace(/<\/p>/gi, '\n\n')
-//                                             .replace(/<[^>]+>/g, '')
-//                                             .replace(/&nbsp;/g, ' ')
-//                                             .replace(/ +/g, ' ')
-//                                             .trim();
-//                                     }
-
-//                                     emailData = {
-//                                         message_id: parsed.messageId,
-//                                         receiver_email: sender,
-//                                         subject: parsed.subject || '(No subject)',
-//                                         text: cleanText || '[No text content]',
-//                                         type: 'received'
-//                                     };
-
-//                                     // Check if email exists
-//                                     db.query(
-//                                         'SELECT COUNT(*) AS count FROM emails WHERE message_id = ?',
-//                                         [emailData.message_id],
-//                                         (err, result) => {
-//                                             if (err) return console.error('DB check error:', err);
-
-//                                             if (result[0].count === 0) {
-//                                                 // First store in emails table
-//                                                 db.query(
-//                                                     'INSERT INTO emails SET ?',
-//                                                     emailData,
-//                                                     (err) => {
-//                                                         if (err) {
-//                                                             console.error('Store error:', err);
-//                                                         } else {
-//                                                             console.log('Stored email:', {
-//                                                                 from: emailData.receiver_email,
-//                                                                 subject: emailData.subject,
-//                                                                 textLength: emailData.text.length
-//                                                             });
-
-//                                                             // Now find the lead ID from previous sent emails
-//                                                             db.query(
-//                                                                 `SELECT leadid FROM emails 
-//                                                                  WHERE receiver_email = ? 
-//                                                                  AND type = 'sent' 
-//                                                                  ORDER BY created_at DESC 
-//                                                                  LIMIT 1`,
-//                                                                 [emailData.receiver_email],
-//                                                                 (err, sentEmails) => {
-//                                                                     if (err) {
-//                                                                         console.error('Error finding lead ID:', err);
-//                                                                         return;
-//                                                                     }
-
-//                                                                     if (sentEmails.length > 0) {
-//                                                                         const leadId = sentEmails[0].leadid;
-//                                                                         // Store in email_notifications table
-//                                                                         const notificationData = {
-//                                                                             leadid: leadId,
-//                                                                             email: emailData.receiver_email,
-//                                                                             subject: emailData.subject,
-//                                                                             text: emailData.text,
-//                                                                             created_at: new Date()
-//                                                                         };
-
-//                                                                         db.query(
-//                                                                             'INSERT INTO email_notifications SET ?',
-//                                                                             notificationData,
-//                                                                             (err) => {
-//                                                                                 if (err) {
-//                                                                                     console.error('Error storing notification:', err);
-//                                                                                 } else {
-//                                                                                     console.log('Stored notification for lead:', leadId);
-//                                                                                 }
-//                                                                                 processedCount++;
-//                                                                                 if (processedCount === uids.length) {
-//                                                                                     imap.end();
-//                                                                                 }
-//                                                                             }
-//                                                                         );
-//                                                                     } else {
-//                                                                         console.log('No matching sent email found for:', emailData.receiver_email);
-//                                                                         processedCount++;
-//                                                                         if (processedCount === uids.length) {
-//                                                                             imap.end();
-//                                                                         }
-//                                                                     }
-//                                                                 }
-//                                                             );
-//                                                         }
-//                                                     }
-//                                                 );
-//                                             } else {
-//                                                 processedCount++;
-//                                                 if (processedCount === uids.length) {
-//                                                     imap.end();
-//                                                 }
-//                                             }
-//                                         }
-//                                     );
-//                                 });
-//                             });
-//                         });
-
-//                         fetch.once('end', () => {
-//                             if (processedCount === uids.length) {
-//                                 imap.end();
-//                             }
-//                             resolve('Processing completed');
-//                         });
-
-//                         fetch.once('error', reject);
-//                     });
-//                 });
-//             });
-
-//             imap.once('error', reject);
-//             imap.connect();
-//         });
-//     });
-// };
-
 const fetchAndStoreEmails = async () => {
     return new Promise((resolve, reject) => {
         // Get all known receiver emails
@@ -363,10 +192,6 @@ const fetchAndStoreEmails = async () => {
                                     // Extract sender email
                                     const sender = parsed.from?.value?.[0]?.address;
                                     if (!sender || !knownReceivers.has(sender.toLowerCase().trim())) {
-                                        processedCount++;
-                                        if (processedCount === uids.length) {
-                                            imap.end();
-                                        }
                                         return; // Skip unknown senders
                                     }
 
@@ -409,112 +234,63 @@ const fetchAndStoreEmails = async () => {
                                                     (err) => {
                                                         if (err) {
                                                             console.error('Store error:', err);
-                                                            processedCount++;
-                                                            if (processedCount === uids.length) {
-                                                                imap.end();
-                                                            }
-                                                            return;
-                                                        }
+                                                        } else {
+                                                            console.log('Stored email:', {
+                                                                from: emailData.receiver_email,
+                                                                subject: emailData.subject,
+                                                                textLength: emailData.text.length
+                                                            });
 
-                                                        console.log('Stored email:', {
-                                                            from: emailData.receiver_email,
-                                                            subject: emailData.subject,
-                                                            textLength: emailData.text.length
-                                                        });
-
-                                                        // Now find the lead ID from previous sent emails
-                                                        db.query(
-                                                            `SELECT leadid FROM emails 
-                                                             WHERE receiver_email = ? 
-                                                             AND type = 'sent' 
-                                                             ORDER BY created_at DESC 
-                                                             LIMIT 1`,
-                                                            [emailData.receiver_email],
-                                                            (err, sentEmails) => {
-                                                                if (err) {
-                                                                    console.error('Error finding lead ID:', err);
-                                                                    processedCount++;
-                                                                    if (processedCount === uids.length) {
-                                                                        imap.end();
+                                                            // Now find the lead ID from previous sent emails
+                                                            db.query(
+                                                                `SELECT leadid FROM emails 
+                                                                 WHERE receiver_email = ? 
+                                                                 AND type = 'sent' 
+                                                                 ORDER BY created_at DESC 
+                                                                 LIMIT 1`,
+                                                                [emailData.receiver_email],
+                                                                (err, sentEmails) => {
+                                                                    if (err) {
+                                                                        console.error('Error finding lead ID:', err);
+                                                                        return;
                                                                     }
-                                                                    return;
-                                                                }
 
-                                                                if (sentEmails.length > 0) {
-                                                                    const leadId = sentEmails[0].leadid;
-                                                                    
-                                                                    // Get lead details from addleads table
-                                                                    db.query(
-                                                                        'SELECT assignedSalesId, managerid FROM addleads WHERE leadid = ?',
-                                                                        [leadId],
-                                                                        (err, leadDetails) => {
-                                                                            if (err) {
-                                                                                console.error('Error fetching lead details:', err);
+                                                                    if (sentEmails.length > 0) {
+                                                                        const leadId = sentEmails[0].leadid;
+                                                                        // Store in email_notifications table
+                                                                        const notificationData = {
+                                                                            leadid: leadId,
+                                                                            email: emailData.receiver_email,
+                                                                            subject: emailData.subject,
+                                                                            text: emailData.text,
+                                                                            created_at: new Date()
+                                                                        };
+
+                                                                        db.query(
+                                                                            'INSERT INTO email_notifications SET ?',
+                                                                            notificationData,
+                                                                            (err) => {
+                                                                                if (err) {
+                                                                                    console.error('Error storing notification:', err);
+                                                                                } else {
+                                                                                    console.log('Stored notification for lead:', leadId);
+                                                                                }
                                                                                 processedCount++;
                                                                                 if (processedCount === uids.length) {
                                                                                     imap.end();
                                                                                 }
-                                                                                return;
                                                                             }
-
-                                                                            if (leadDetails.length === 0) {
-                                                                                // Lead not found, just store with admin
-                                                                                storeNotification(leadId, emailData, { adminid: 'admin' }, () => {
-                                                                                    processedCount++;
-                                                                                    if (processedCount === uids.length) {
-                                                                                        imap.end();
-                                                                                    }
-                                                                                });
-                                                                                return;
-                                                                            }
-
-                                                                            const leadInfo = leadDetails[0];
-                                                                            const notificationsToStore = [];
-
-                                                                            // Always include admin notification
-                                                                            notificationsToStore.push({ adminid: 'admin' });
-
-                                                                            // Check for assigned sales person
-                                                                            if (leadInfo.assignedSalesId) {
-                                                                                notificationsToStore.push({ employeeId: leadInfo.assignedSalesId });
-                                                                            }
-
-                                                                            // Check for manager
-                                                                            if (leadInfo.managerid) {
-                                                                                notificationsToStore.push({ managerid: leadInfo.managerid });
-                                                                            }
-
-                                                                            // Store all notifications
-                                                                            let notificationsStored = 0;
-                                                                            const totalNotifications = notificationsToStore.length;
-
-                                                                            notificationsToStore.forEach((recipient) => {
-                                                                                storeNotification(
-                                                                                    leadId,
-                                                                                    emailData,
-                                                                                    recipient,
-                                                                                    () => {
-                                                                                        notificationsStored++;
-                                                                                        if (notificationsStored === totalNotifications) {
-                                                                                            processedCount++;
-                                                                                            if (processedCount === uids.length) {
-                                                                                                imap.end();
-                                                                                            }
-                                                                                        }
-                                                                                    }
-                                                                                );
-                                                                            });
+                                                                        );
+                                                                    } else {
+                                                                        console.log('No matching sent email found for:', emailData.receiver_email);
+                                                                        processedCount++;
+                                                                        if (processedCount === uids.length) {
+                                                                            imap.end();
                                                                         }
-                                                                    );
-                                                                } else {
-                                                                    console.log('No matching sent email found for:', emailData.receiver_email);
-                                                                    processedCount++;
-                                                                    if (processedCount === uids.length) {
-                                                                        imap.end();
                                                                     }
                                                                 }
-                                                            }
-                                                        );
+                                                            );
+                                                        }
                                                     }
                                                 );
                                             } else {
@@ -546,31 +322,6 @@ const fetchAndStoreEmails = async () => {
         });
     });
 };
-
-// Helper function to store a single notification
-function storeNotification(leadId, emailData, recipient, callback) {
-    const notificationData = {
-        leadid: leadId,
-        email: emailData.receiver_email,
-        subject: emailData.subject,
-        text: emailData.text,
-        created_at: new Date(),
-        ...recipient
-    };
-
-    db.query(
-        'INSERT INTO email_notifications SET ?',
-        notificationData,
-        (err) => {
-            if (err) {
-                console.error('Error storing notification:', err);
-            } else {
-                console.log('Stored notification for lead:', leadId, 'with recipient:', recipient);
-            }
-            callback();
-        }
-    );
-}
 
 // Automatically Fetch Emails Every 5 Minutes
 setInterval(() => {
@@ -627,19 +378,19 @@ router.post("/upload-quotation", upload.single("file"), async (req, res) => {
 
 
         console.log("✅ Generated Quotation ID:", newQuotationId);
-        
+
         // ✅ Nodemailer Configuration
         let transporter = nodemailer.createTransport({
             service: "gmail",
             auth: {
-                user: "iiiqbetsvarnaaz@gmail.com",
-                pass: "rbdy vard mzit ybse",
+                user: "uppalahemanth4@gmail.com",
+                pass: "oimoftsgtwradkux",
             },
             tls: { rejectUnauthorized: false },
         });
 
         let mailOptions = {
-            from: "iiiqbetsvarnaaz@gmail.com",
+            from: "uppalahemanth4@gmail.com",
             to: email,
             subject: `Quotation #${newQuotationId}`,
             text: "Please find the attached quotation.",
@@ -737,8 +488,8 @@ router.post("/update-email-status", (req, res) => {
 const transporter = nodemailer.createTransport({
     service: "gmail",
     auth: {
-        user: "iiiqbetsvarnaaz@gmail.com",
-        pass: "rbdy vard mzit ybse",// Use App Password
+        user: "uppalahemanth4@gmail.com", // Your Gmail
+        pass: "oimoftsgtwradkux", // Use App Password
     },
     tls: { rejectUnauthorized: false },
 });
@@ -915,9 +666,9 @@ router.post("/post-from-email", upload.single("file"), async (req, res) => {
                 newQuotationId = "Qu001";
             }
         }
-       
+
         const mailOptions = {
-            from: "iiiqbetsvarnaaz@gmail.com",
+            from: "uppalahemanth4@gmail.com",
             to: receiver_email,
             subject: subject,
             text: text || "",

@@ -43,19 +43,6 @@ const db = require('../config/db'); // Adjust the path to your database connecti
       res.json({ notifications: results });
     });
   });
-
-  router.get('/api/manager/email/notifications', (req, res) => {
-    const managerid = req.query.managerid;
-    const query = "SELECT * FROM email_notifications WHERE managerid = ? AND `read` = 0 ORDER BY created_at DESC";
-
-    db.query(query, [managerid], (err, results) => {
-        if (err) {
-            console.error('Error fetching notifications:', err);
-            return res.status(500).json({ message: 'Error fetching notifications' });
-        }
-        res.json({ emailnotifications: results });
-    });
-});
   
   // Mark a notification as read
   router.put('/api/notifications/:id', (req, res) => {
@@ -91,19 +78,6 @@ const db = require('../config/db'); // Adjust the path to your database connecti
       res.json({ notifications: results });
     });
   });
-
-  router.get('/api/sales/email/notifications', (req, res) => {
-    const managerid = req.query.managerid;
-    const query = "SELECT * FROM email_notifications WHERE employeeId = ? AND `read` = 0 ORDER BY created_at DESC";
-
-    db.query(query, [managerid], (err, results) => {
-        if (err) {
-            console.error('Error fetching notifications:', err);
-            return res.status(500).json({ message: 'Error fetching notifications' });
-        }
-        res.json({ emailnotifications: results });
-    });
-});
   
   // Mark a notification as read
   router.put('/sales/notifications/:id', (req, res) => {
@@ -147,30 +121,18 @@ const db = require('../config/db'); // Adjust the path to your database connecti
   });
 
 
+
+
   router.get('/api/email/notifications', (req, res) => {
-    const query = "SELECT * FROM email_notifications WHERE  adminid = 'admin'  AND `read` = 0 ORDER BY created_at DESC";
+    const query = "SELECT * FROM email_notifications WHERE `read` = 0 ORDER BY createdAt DESC";
 
     db.query(query, (err, results) => { // Removed the extra comma
         if (err) {
             console.error('Error fetching notifications:', err);
             return res.status(500).json({ message: 'Error fetching notifications' });
         }
-        res.json({ emailnotifications: results });
+        res.json({ notifications: results });
     });
-});
-
-// Mark a notification as read
-router.put('/api/email/notifications/:id', (req, res) => {
-  const emailnotificationId = req.params.id;
-  const { read } = req.body; // should be true
-  const query = "UPDATE email_notifications SET `read` = ? WHERE id = ?";
-  db.query(query, [read ? 1 : 0, emailnotificationId], (err, result) => {
-    if (err) {
-      console.error("Error updating notification:", err);
-      return res.status(500).json({ message: "Error updating notification" });
-    }
-    res.json({ message: "Notification updated" });
-  });
 });
 
 

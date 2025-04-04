@@ -684,7 +684,7 @@ exports.deleteLead = (req, res) => {
 //   });
 // };
 
-exports.updateLeadStatus = (req, res) => {
+exports.updateLeadStatus = (req, res) => { 
   const { leadid } = req.params; // Lead ID from the URL
   const { primaryStatus, secondaryStatus } = req.body; // Status fields from the request body
 
@@ -719,6 +719,43 @@ exports.updateLeadStatus = (req, res) => {
     res.status(200).json({ message: statusChangeMessage });
   });
 };
+
+// exports.updateLeadStatus = (req, res) => { 
+//   const { leadid } = req.params; // Lead ID from the URL
+//   const { primaryStatus, secondaryStatus } = req.body; // Status fields from the request body
+
+//   // Ensure at least one of the fields is present (allow empty string for secondaryStatus)
+//   if (primaryStatus === undefined && secondaryStatus === undefined) {
+//       return res.status(400).json({
+//           message: "At least one of primary status or secondary status is required.",
+//       });
+//   }
+
+//   // Call the model to update the lead status
+//   Lead.updateLeadStatus(leadid, primaryStatus, secondaryStatus, (err, result) => {
+//       if (err) {
+//           console.error("Error updating lead status:", err);
+//           return res.status(500).json({ message: "Failed to update lead status." });
+//       }
+
+//       if (result.affectedRows === 0) {
+//           return res.status(404).json({ message: "Lead not found." });
+//       }
+
+//       // Determine the response message
+//       let statusChangeMessage = "Lead status updated successfully.";
+//       if (primaryStatus !== undefined && secondaryStatus !== undefined) {
+//           statusChangeMessage = "Both primary and secondary statuses updated successfully!";
+//       } else if (primaryStatus !== undefined) {
+//           statusChangeMessage = "Primary status updated successfully!";
+//       } else if (secondaryStatus !== undefined) {
+//           statusChangeMessage = "Secondary status updated successfully!";
+//       }
+
+//       res.status(200).json({ message: statusChangeMessage });
+//   });
+// };
+
 
 
 exports.getLeadData = (req, res) => {

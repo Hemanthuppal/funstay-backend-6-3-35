@@ -36,6 +36,8 @@ const tagRoutes = require('./routes/tagRoutes');
 const tagUpdateRoutes = require('./routes/tagUpdateRoute');
 const filterTagRoute = require('./routes/filterTagRoute');
 const quotationRoute = require('./routes/quotationRoute');
+const supplierRoute = require('./routes/supplierRoute');
+const paymentsRoute = require('./routes/paymentsRoute');
 // const emailRoutes = require('./routes/email');
 
 const app = express();
@@ -82,6 +84,8 @@ app.use('/api', tagRoutes);
 app.use('/api', tagUpdateRoutes);
 app.use('/api', filterTagRoute);
 app.use('/api', quotationRoute);
+app.use('/api', supplierRoute);
+app.use('/api', paymentsRoute);
 // app.use('/api', emailRoutes);
 
 app.listen(PORT, () => {

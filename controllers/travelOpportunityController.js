@@ -36,6 +36,31 @@ const getTravelOpportunities = (req, res) => {
   });
 };
 
+// PUT controller to update approx_budget
+const updateTravelOpportunity = (req, res) => {
+  const opportunityId = req.params.id;
+  const { approx_budget } = req.body;
+
+  if (!approx_budget || isNaN(approx_budget)) {
+    return res.status(400).json({ error: 'Invalid approx_budget' });
+  }
+
+  travelOpportunityModel.updateApproxBudget(opportunityId, approx_budget, (error, result) => {
+    if (error) {
+      console.error('Error updating travel opportunity:', error);
+      return res.status(500).json({ error: 'Failed to update approx_budget' });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: 'Travel opportunity not found' });
+    }
+
+    res.status(200).json({ message: 'Approx budget updated successfully' });
+  });
+};
+
+
 module.exports = {
   getTravelOpportunities,
+  updateTravelOpportunity,
 };

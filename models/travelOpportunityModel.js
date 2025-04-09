@@ -17,6 +17,20 @@ const getAllTravelOpportunities = (callback) => {
   });
 };
 
+// New model method to update approx_budget
+const updateApproxBudget = (id, approx_budget, callback) => {
+  const query = `
+    UPDATE travel_opportunity 
+    SET approx_budget = ? 
+    WHERE id = ?
+  `;
+  db.query(query, [approx_budget, id], (error, result) => {
+    if (error) return callback(error, null);
+    callback(null, result);
+  });
+};
+
 module.exports = {
   getAllTravelOpportunities,
+  updateApproxBudget,
 };

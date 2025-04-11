@@ -199,6 +199,359 @@ WHERE (primarySource NOT IN ('Google', 'Referral') OR primarySource IS NULL)
   });
 });
 
+router.get('/leads/weekly', (req, res) => {
+  const today = new Date();
+
+  // Find the previous Sunday
+  const dayOfWeek = today.getDay(); // 0 = Sunday, 6 = Saturday
+  const sunday = new Date(today);
+  sunday.setDate(today.getDate() - dayOfWeek);
+
+  // Find the coming Saturday
+  const saturday = new Date(sunday);
+  saturday.setDate(sunday.getDate() + 6);
+
+  const startDate = sunday.toISOString().split('T')[0];
+  const endDate = saturday.toISOString().split('T')[0];
+
+  const query = `
+    SELECT COUNT(*) AS count 
+    FROM addleads 
+    WHERE DATE(created_at) BETWEEN ? AND ?
+  `;
+
+  db.query(query, [startDate, endDate], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({
+      week_start: startDate,
+      week_end: endDate,
+      count: results[0].count,
+    });
+  });
+});
+
+router.get('/leads/monthly', (req, res) => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = (now.getMonth() + 1).toString().padStart(2, '0'); // current month
+
+  const query = `
+    SELECT COUNT(*) AS count 
+    FROM addleads 
+    WHERE DATE_FORMAT(created_at, '%Y-%m') = ?
+  `;
+
+  db.query(query, [`${year}-${month}`], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ count: results[0].count });
+  });
+});
+
+router.get('/leads/confirmed/weekly', (req, res) => {
+  const today = new Date();
+  const dayOfWeek = today.getDay(); // 0 = Sunday, 6 = Saturday
+
+  const sunday = new Date(today);
+  sunday.setDate(today.getDate() - dayOfWeek);
+
+  const saturday = new Date(sunday);
+  saturday.setDate(sunday.getDate() + 6);
+
+  const startDate = sunday.toISOString().split('T')[0];
+  const endDate = saturday.toISOString().split('T')[0];
+
+  const query = `
+    SELECT COUNT(*) AS count 
+    FROM addleads 
+    WHERE status = 'opportunity' 
+    AND DATE(created_at) BETWEEN ? AND ?
+  `;
+
+  db.query(query, [startDate, endDate], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({
+      week_start: startDate,
+      week_end: endDate,
+      count: results[0].count,
+    });
+  });
+});
+router.get('/leads/confirmed/monthly', (req, res) => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = (now.getMonth() + 1).toString().padStart(2, '0');
+
+  const query = `
+    SELECT COUNT(*) AS count 
+    FROM addleads 
+    WHERE status = 'opportunity' 
+    AND DATE_FORMAT(created_at, '%Y-%m') = ?
+  `;
+
+  db.query(query, [`${year}-${month}`], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({
+      month: `${year}-${month}`,
+      count: results[0].count,
+    });
+  });
+});
+
+router.get('/hots/today', (req, res) => {
+  const today = new Date().toISOString().split('T')[0];
+
+  const query = `
+    SELECT COUNT(*) AS count 
+    FROM travel_opportunity 
+    WHERE tag = 'Hot' 
+    AND DATE(created_at) = ?
+  `;
+
+  db.query(query, [today], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ count: results[0].count });
+  });
+});
+router.get('/hots/weekly', (req, res) => {
+  const today = new Date();
+  const dayOfWeek = today.getDay(); // 0 = Sunday
+  const sunday = new Date(today);
+  sunday.setDate(today.getDate() - dayOfWeek);
+  const saturday = new Date(sunday);
+  saturday.setDate(sunday.getDate() + 6);
+
+  const startDate = sunday.toISOString().split('T')[0];
+  const endDate = saturday.toISOString().split('T')[0];
+
+  const query = `
+    SELECT COUNT(*) AS count 
+    FROM travel_opportunity 
+    WHERE tag = 'Hot' 
+    AND DATE(created_at) BETWEEN ? AND ?
+  `;
+
+  db.query(query, [startDate, endDate], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({
+      week_start: startDate,
+      week_end: endDate,
+      count: results[0].count,
+    });
+  });
+});
+router.get('/hots/monthly', (req, res) => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = (now.getMonth() + 1).toString().padStart(2, '0');
+
+  const query = `
+    SELECT COUNT(*) AS count 
+    FROM travel_opportunity 
+    WHERE tag = 'Hot' 
+    AND DATE_FORMAT(created_at, '%Y-%m') = ?
+  `;
+
+  db.query(query, [`${year}-${month}`], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({
+      month: `${year}-${month}`,
+      count: results[0].count,
+    });
+  });
+});
+
+router.get('/opps/confirmed/today', (req, res) => {
+  const today = new Date().toISOString().split('T')[0];
+
+  const query = `
+    SELECT COUNT(*) AS count 
+    FROM addleads 
+    WHERE opportunity_status1 = 'Confirmed' 
+    AND DATE(created_at) = ?
+  `;
+
+  db.query(query, [today], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ count: results[0].count });
+  });
+});
+
+router.get('/opps/confirmed/weekly', (req, res) => {
+  const today = new Date();
+  const dayOfWeek = today.getDay(); // 0 = Sunday
+  const sunday = new Date(today);
+  sunday.setDate(today.getDate() - dayOfWeek);
+  const saturday = new Date(sunday);
+  saturday.setDate(sunday.getDate() + 6);
+
+  const startDate = sunday.toISOString().split('T')[0];
+  const endDate = saturday.toISOString().split('T')[0];
+
+  const query = `
+    SELECT COUNT(*) AS count 
+    FROM addleads 
+    WHERE opportunity_status1 = 'Confirmed' 
+    AND DATE(created_at) BETWEEN ? AND ?
+  `;
+
+  db.query(query, [startDate, endDate], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({
+      week_start: startDate,
+      week_end: endDate,
+      count: results[0].count,
+    });
+  });
+});
+router.get('/opps/confirmed/monthly', (req, res) => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = (now.getMonth() + 1).toString().padStart(2, '0');
+
+  const query = `
+    SELECT COUNT(*) AS count 
+    FROM addleads 
+    WHERE opportunity_status1 = 'Confirmed' 
+    AND DATE_FORMAT(created_at, '%Y-%m') = ?
+  `;
+
+  db.query(query, [`${year}-${month}`], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({
+      month: `${year}-${month}`,
+      count: results[0].count,
+    });
+  });
+});
+
+router.get('/receivables/today', (req, res) => {
+  const today = new Date().toISOString().split('T')[0];
+
+  const query = `
+    SELECT SUM(CAST(paid_amount AS DECIMAL(10,2))) AS total_paid 
+    FROM receivables 
+    WHERE status = 'approved' 
+    AND DATE(created_at) = ?
+  `;
+
+  db.query(query, [today], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ date: today, total_paid: results[0].total_paid || 0 });
+  });
+});
+
+router.get('/receivables/weekly', (req, res) => {
+  const today = new Date();
+  const dayOfWeek = today.getDay(); // Sunday = 0
+  const sunday = new Date(today);
+  sunday.setDate(today.getDate() - dayOfWeek);
+  const saturday = new Date(sunday);
+  saturday.setDate(sunday.getDate() + 6);
+
+  const startDate = sunday.toISOString().split('T')[0];
+  const endDate = saturday.toISOString().split('T')[0];
+
+  const query = `
+    SELECT SUM(CAST(paid_amount AS DECIMAL(10,2))) AS total_paid 
+    FROM receivables 
+    WHERE status = 'approved' 
+    AND DATE(created_at) BETWEEN ? AND ?
+  `;
+
+  db.query(query, [startDate, endDate], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({
+      week_start: startDate,
+      week_end: endDate,
+      total_paid: results[0].total_paid || 0
+    });
+  });
+});
+router.get('/receivables/monthly', (req, res) => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = (now.getMonth() + 1).toString().padStart(2, '0');
+
+  const query = `
+    SELECT SUM(CAST(paid_amount AS DECIMAL(10,2))) AS total_paid 
+    FROM receivables 
+    WHERE status = 'approved' 
+    AND DATE_FORMAT(created_at, '%Y-%m') = ?
+  `;
+
+  db.query(query, [`${year}-${month}`], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({
+      month: `${year}-${month}`,
+      total_paid: results[0].total_paid || 0
+    });
+  });
+});
+
+router.get('/payables/today', (req, res) => {
+  const today = new Date().toISOString().split('T')[0];
+
+  const query = `
+    SELECT SUM(paid_amount) AS total_paid 
+    FROM payment_log 
+    WHERE status = 'Approved' 
+    AND DATE(paid_on) = ?
+  `;
+
+  db.query(query, [today], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ date: today, total_paid: results[0].total_paid || 0 });
+  });
+});
+
+router.get('/payables/weekly', (req, res) => {
+  const today = new Date();
+  const dayOfWeek = today.getDay(); // Sunday = 0
+  const sunday = new Date(today);
+  sunday.setDate(today.getDate() - dayOfWeek);
+  const saturday = new Date(sunday);
+  saturday.setDate(sunday.getDate() + 6);
+
+  const startDate = sunday.toISOString().split('T')[0];
+  const endDate = saturday.toISOString().split('T')[0];
+
+  const query = `
+    SELECT SUM(paid_amount) AS total_paid 
+    FROM payment_log 
+    WHERE status = 'Approved' 
+    AND DATE(paid_on) BETWEEN ? AND ?
+  `;
+
+  db.query(query, [startDate, endDate], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({
+      week_start: startDate,
+      week_end: endDate,
+      total_paid: results[0].total_paid || 0
+    });
+  });
+});
+
+router.get('/payables/monthly', (req, res) => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = (now.getMonth() + 1).toString().padStart(2, '0');
+
+  const query = `
+    SELECT SUM(paid_amount) AS total_paid 
+    FROM payment_log 
+    WHERE status = 'Approved' 
+    AND DATE_FORMAT(paid_on, '%Y-%m') = ?
+  `;
+
+  db.query(query, [`${year}-${month}`], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({
+      month: `${year}-${month}`,
+      total_paid: results[0].total_paid || 0
+    });
+  });
+});
 
 
 module.exports = router;

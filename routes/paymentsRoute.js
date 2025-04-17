@@ -85,18 +85,78 @@ router.get("/payments", (req, res) => {
         return res.status(404).json({ error: "Payment record not found" });
       }
   
-      // Update the status field
-      const updateQuery = "UPDATE receivables SET status = ? WHERE id = ?";
-      db.query(updateQuery, [status, id], (err, result) => {
-        if (err) {
-          console.error("Error updating status:", err);
-          return res.status(500).json({ error: "Database error while updating status" });
-        }
-  
-        res.status(200).json({ message: "Status updated successfully" });
-      });
+     // Update both status and status_updated_at
+    const updateQuery = `
+    UPDATE receivables 
+    SET status = ?, status_updated_at = NOW() 
+    WHERE id = ?
+  `;
+  db.query(updateQuery, [status, id], (err, result) => {
+    if (err) {
+      console.error("Error updating status:", err);
+      return res.status(500).json({ error: "Database error while updating status" });
+    }
+
+    res.status(200).json({ message: "Status and update time saved successfully" });
+  });
     });
   });
+
+  // router.put("/payable-update-status/:id/status", (req, res) => {
+  //   const { id } = req.params;
+  //   const { status } = req.body;
+  
+  //   const checkQuery = "SELECT * FROM suppliers WHERE id = ?";
+  //   db.query(checkQuery, [id], (err, results) => {
+  //     if (err) {
+  //       console.error("Error checking payment record:", err);
+  //       return res.status(500).json({ error: "Database error while checking record" });
+  //     }
+  
+  //     if (results.length === 0) {
+  //       return res.status(404).json({ error: "Payment record not found" });
+  //     }
+  
+  //     // const updateSupplierQuery = "UPDATE suppliers SET status = ? WHERE id = ?";
+  //     // db.query(updateSupplierQuery, [status, id], (err) => {
+  //     //   if (err) {
+  //     //     console.error("Error updating supplier status:", err);
+  //     //     return res.status(500).json({ error: "Database error while updating supplier status" });
+  //     //   }
+  
+  //       const updateLogQuery = "UPDATE payment_log SET status = ? WHERE supplier_id = ?";
+  //       db.query(updateLogQuery, [status, id], (err) => {
+  //         if (err) {
+  //           console.error("Error updating payment_log status:", err);
+  //           return res.status(500).json({ error: "Database error while updating log status" });
+  //         }
+  
+  //         res.status(200).json({ message: "Status updated in both suppliers and payment_log" });
+  //       });
+  //     });
+  //   });
+  
+  // PUT /api/suppliers/history/:id/status
+
+  router.put('/suppliers/history/:id/status', async (req, res) => {
+    const { id } = req.params;
+    const { status } = req.body;
+  
+    try {
+      const query = `
+        UPDATE payment_log 
+        SET status = ?, status_updated_at = NOW() 
+        WHERE id = ?
+      `;
+      await db.promise().query(query, [status, id]);
+  
+      res.status(200).json({ message: 'Status and timestamp updated successfully' });
+    } catch (err) {
+      console.error('DB Update Error:', err);
+      res.status(500).json({ error: 'Failed to update status' });
+    }
+  });
+  
   
 
 

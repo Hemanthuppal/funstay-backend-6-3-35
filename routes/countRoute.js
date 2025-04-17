@@ -21,11 +21,12 @@ router.get('/leads/today', (req, res) => {
 router.get('/leads/confirmed', (req, res) => {
   const today = new Date().toISOString().split('T')[0];
   const query = `
-    SELECT COUNT(*) AS count 
-    FROM addleads 
-    WHERE status = 'opportunity' 
-    AND DATE(created_at) = ?
-  `;
+  SELECT COUNT(*) AS count 
+  FROM addleads a
+  INNER JOIN travel_opportunity t ON a.leadid = t.leadid
+  WHERE a.status = 'opportunity' 
+  AND DATE(t.created_at) = ?
+`;
   
   db.query(query, [today], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -261,11 +262,12 @@ router.get('/leads/confirmed/weekly', (req, res) => {
   const endDate = saturday.toISOString().split('T')[0];
 
   const query = `
-    SELECT COUNT(*) AS count 
-    FROM addleads 
-    WHERE status = 'opportunity' 
-    AND DATE(created_at) BETWEEN ? AND ?
-  `;
+  SELECT COUNT(*) AS count 
+  FROM addleads a
+  JOIN travel_opportunity t ON a.leadid = t.leadid
+  WHERE a.status = 'opportunity' 
+  AND DATE(t.created_at) BETWEEN ? AND ?
+`;
 
   db.query(query, [startDate, endDate], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -282,11 +284,13 @@ router.get('/leads/confirmed/monthly', (req, res) => {
   const month = (now.getMonth() + 1).toString().padStart(2, '0');
 
   const query = `
-    SELECT COUNT(*) AS count 
-    FROM addleads 
-    WHERE status = 'opportunity' 
-    AND DATE_FORMAT(created_at, '%Y-%m') = ?
-  `;
+  SELECT COUNT(*) AS count 
+  FROM addleads a
+  JOIN travel_opportunity t ON a.leadid = t.leadid
+  WHERE a.status = 'opportunity' 
+  AND DATE_FORMAT(t.created_at, '%Y-%m') = ?
+`;
+
 
   db.query(query, [`${year}-${month}`], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
@@ -304,7 +308,7 @@ router.get('/hots/today', (req, res) => {
     SELECT COUNT(*) AS count 
     FROM travel_opportunity 
     WHERE tag = 'Hot' 
-    AND DATE(created_at) = ?
+    AND DATE(tagged_date) = ?
   `;
 
   db.query(query, [today], (err, results) => {
@@ -327,7 +331,7 @@ router.get('/hots/weekly', (req, res) => {
     SELECT COUNT(*) AS count 
     FROM travel_opportunity 
     WHERE tag = 'Hot' 
-    AND DATE(created_at) BETWEEN ? AND ?
+    AND DATE(tagged_date) BETWEEN ? AND ?
   `;
 
   db.query(query, [startDate, endDate], (err, results) => {
@@ -348,7 +352,7 @@ router.get('/hots/monthly', (req, res) => {
     SELECT COUNT(*) AS count 
     FROM travel_opportunity 
     WHERE tag = 'Hot' 
-    AND DATE_FORMAT(created_at, '%Y-%m') = ?
+    AND DATE_FORMAT(tagged_date, '%Y-%m') = ?
   `;
 
   db.query(query, [`${year}-${month}`], (err, results) => {
@@ -367,7 +371,7 @@ router.get('/opps/confirmed/today', (req, res) => {
     SELECT COUNT(*) AS count 
     FROM addleads 
     WHERE opportunity_status1 = 'Confirmed' 
-    AND DATE(created_at) = ?
+    AND DATE(status_updated_at) = ?
   `;
 
   db.query(query, [today], (err, results) => {
@@ -391,7 +395,7 @@ router.get('/opps/confirmed/weekly', (req, res) => {
     SELECT COUNT(*) AS count 
     FROM addleads 
     WHERE opportunity_status1 = 'Confirmed' 
-    AND DATE(created_at) BETWEEN ? AND ?
+    AND DATE(status_updated_at) BETWEEN ? AND ?
   `;
 
   db.query(query, [startDate, endDate], (err, results) => {
@@ -412,7 +416,7 @@ router.get('/opps/confirmed/monthly', (req, res) => {
     SELECT COUNT(*) AS count 
     FROM addleads 
     WHERE opportunity_status1 = 'Confirmed' 
-    AND DATE_FORMAT(created_at, '%Y-%m') = ?
+    AND DATE_FORMAT(status_updated_at, '%Y-%m') = ?
   `;
 
   db.query(query, [`${year}-${month}`], (err, results) => {
@@ -431,7 +435,7 @@ router.get('/receivables/today', (req, res) => {
     SELECT SUM(CAST(paid_amount AS DECIMAL(10,2))) AS total_paid 
     FROM receivables 
     WHERE status = 'approved' 
-    AND DATE(created_at) = ?
+    AND DATE(status_updated_at) = ?
   `;
 
   db.query(query, [today], (err, results) => {
@@ -455,7 +459,7 @@ router.get('/receivables/weekly', (req, res) => {
     SELECT SUM(CAST(paid_amount AS DECIMAL(10,2))) AS total_paid 
     FROM receivables 
     WHERE status = 'approved' 
-    AND DATE(created_at) BETWEEN ? AND ?
+    AND DATE(status_updated_at) BETWEEN ? AND ?
   `;
 
   db.query(query, [startDate, endDate], (err, results) => {
@@ -476,7 +480,7 @@ router.get('/receivables/monthly', (req, res) => {
     SELECT SUM(CAST(paid_amount AS DECIMAL(10,2))) AS total_paid 
     FROM receivables 
     WHERE status = 'approved' 
-    AND DATE_FORMAT(created_at, '%Y-%m') = ?
+    AND DATE_FORMAT(status_updated_at, '%Y-%m') = ?
   `;
 
   db.query(query, [`${year}-${month}`], (err, results) => {
@@ -495,7 +499,7 @@ router.get('/payables/today', (req, res) => {
     SELECT SUM(paid_amount) AS total_paid 
     FROM payment_log 
     WHERE status = 'Approved' 
-    AND DATE(paid_on) = ?
+    AND DATE(status_updated_at) = ?
   `;
 
   db.query(query, [today], (err, results) => {
@@ -519,7 +523,7 @@ router.get('/payables/weekly', (req, res) => {
     SELECT SUM(paid_amount) AS total_paid 
     FROM payment_log 
     WHERE status = 'Approved' 
-    AND DATE(paid_on) BETWEEN ? AND ?
+    AND DATE(status_updated_at) BETWEEN ? AND ?
   `;
 
   db.query(query, [startDate, endDate], (err, results) => {
@@ -541,7 +545,7 @@ router.get('/payables/monthly', (req, res) => {
     SELECT SUM(paid_amount) AS total_paid 
     FROM payment_log 
     WHERE status = 'Approved' 
-    AND DATE_FORMAT(paid_on, '%Y-%m') = ?
+    AND DATE_FORMAT(status_updated_at, '%Y-%m') = ?
   `;
 
   db.query(query, [`${year}-${month}`], (err, results) => {

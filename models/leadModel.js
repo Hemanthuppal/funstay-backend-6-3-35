@@ -108,69 +108,70 @@ createLead: (data, callback) => {
   },
 
 
+  // updateLeadStatus: (leadid, primaryStatus, secondaryStatus, callback) => {
+  //   // Prepare the query and values
+  //   let query = 'UPDATE addleads SET ';
+  //   const values = [];
+  
+  //   // Only update primaryStatus if it is provided
+  //   if (primaryStatus) {
+  //     query += 'primaryStatus = ?';
+  //     values.push(primaryStatus);
+  //   }
+  
+  //   // Only update secondaryStatus if it is provided
+  //   if (secondaryStatus) {
+  //     if (primaryStatus) {
+  //       query += ', '; // Add a comma if primaryStatus is also being updated
+  //     }
+  //     query += 'secondaryStatus = ?';
+  //     values.push(secondaryStatus);
+  //   }
+  
+  //   // Complete the query with the WHERE clause
+  //   query += ' WHERE leadid = ?';
+  //   values.push(leadid);
+  
+  //   // Execute the query
+  //   db.query(query, values, callback);
+  // },
+
   updateLeadStatus: (leadid, primaryStatus, secondaryStatus, callback) => {
-    // Prepare the query and values
     let query = 'UPDATE addleads SET ';
     const values = [];
   
-    // Only update primaryStatus if it is provided
-    if (primaryStatus) {
-      query += 'primaryStatus = ?';
-      values.push(primaryStatus);
+    // Ensure both statuses are being updated properly
+    if (primaryStatus !== undefined) {
+        query += 'primaryStatus = ?';
+        values.push(primaryStatus);
     }
   
-    // Only update secondaryStatus if it is provided
-    if (secondaryStatus) {
-      if (primaryStatus) {
-        query += ', '; // Add a comma if primaryStatus is also being updated
-      }
-      query += 'secondaryStatus = ?';
-      values.push(secondaryStatus);
+    if (secondaryStatus !== undefined) {
+        if (values.length > 0) {
+            query += ', ';
+        }
+        query += 'secondaryStatus = ?';
+        values.push(secondaryStatus);
     }
-  
-    // Complete the query with the WHERE clause
+
+    // If no values are being updated, return early to prevent an invalid query
+    if (values.length === 0) {
+        return callback(new Error("No valid fields to update"), null);
+    }
+
+    // Add the WHERE clause
     query += ' WHERE leadid = ?';
     values.push(leadid);
   
     // Execute the query
-    db.query(query, values, callback);
-  },
-//   updateLeadStatus: (leadid, primaryStatus, secondaryStatus, callback) => {
-//     let query = 'UPDATE addleads SET ';
-//     const values = [];
-  
-//     // Ensure both statuses are being updated properly
-//     if (primaryStatus !== undefined) {
-//         query += 'primaryStatus = ?';
-//         values.push(primaryStatus);
-//     }
-  
-//     if (secondaryStatus !== undefined) {
-//         if (values.length > 0) {
-//             query += ', ';
-//         }
-//         query += 'secondaryStatus = ?';
-//         values.push(secondaryStatus);
-//     }
-
-//     // If no values are being updated, return early to prevent an invalid query
-//     if (values.length === 0) {
-//         return callback(new Error("No valid fields to update"), null);
-//     }
-
-//     // Add the WHERE clause
-//     query += ' WHERE leadid = ?';
-//     values.push(leadid);
-  
-//     // Execute the query
-//     db.query(query, values, (err, result) => {
-//         if (err) {
-//             console.error("Database error while updating lead status:", err);
-//             return callback(err, null);
-//         }
-//         callback(null, result);
-//     });
-// },
+    db.query(query, values, (err, result) => {
+        if (err) {
+            console.error("Database error while updating lead status:", err);
+            return callback(err, null);
+        }
+        callback(null, result);
+    });
+},
 
 
 

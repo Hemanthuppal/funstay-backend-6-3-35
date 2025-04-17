@@ -159,197 +159,194 @@ const upload = multer({ storage });
 //         });
 //     });
 // };
+const fetchAndStoreEmailsForAllUsers = async () => {
+    return new Promise((resolve, reject) => {
+        // Step 1: Get all known receiver emails (sent emails from our system)
+        db.query('SELECT DISTINCT receiver_email FROM emails', (err, receivers) => {
+            if (err) return reject(err);
 
-//receiver mails reply
-// const fetchAndStoreEmailsForAllUsers = async () => {
-//     return new Promise((resolve, reject) => {
-//         // Step 1: Get all known receiver emails (sent emails from our system)
-//         db.query('SELECT DISTINCT receiver_email FROM emails', (err, receivers) => {
-//             if (err) return reject(err);
+            const knownReceivers = new Set(receivers.map(r => r.receiver_email.toLowerCase().trim()));
 
-//             const knownReceivers = new Set(receivers.map(r => r.receiver_email.toLowerCase().trim()));
+            // Step 2: Get all sender credentials
+            db.query('SELECT * FROM email_credentials', async (err, credentials) => {
+                if (err) return reject(err);
+                if (!credentials.length) return resolve('No email credentials found');
 
-//             // Step 2: Get all sender credentials
-//             db.query('SELECT * FROM email_credentials', async (err, credentials) => {
-//                 if (err) return reject(err);
-//                 if (!credentials.length) return resolve('No email credentials found');
+                // Step 3: Process each email credential
+                for (const cred of credentials) {
+                    const imapConfig = {
+                        user: cred.sender_email,
+                        password: cred.app_password,
+                        host: 'imap.gmail.com',
+                        port: 993,
+                        tls: true,
+                        tlsOptions: { rejectUnauthorized: false },
+                        authTimeout: 30000
+                    };
 
-//                 // Step 3: Process each email credential
-//                 for (const cred of credentials) {
-//                     const imapConfig = {
-//                         user: cred.sender_email,
-//                         password: cred.app_password,
-//                         host: 'imap.gmail.com',
-//                         port: 993,
-//                         tls: true,
-//                         tlsOptions: { rejectUnauthorized: false },
-//                         authTimeout: 30000
-//                     };
+                    await fetchAndStoreEmailsForUser(imapConfig, knownReceivers);
+                }
 
-//                     await fetchAndStoreEmailsForUser(imapConfig, knownReceivers);
-//                 }
+                resolve('All email accounts processed');
+            });
+        });
+    });
+};
 
-//                 resolve('All email accounts processed');
-//             });
-//         });
-//     });
-// };
+const fetchAndStoreEmailsForUser = (imapConfig, knownReceivers) => {
+    return new Promise((resolve, reject) => {
+        const imap = new Imap(imapConfig);
 
-// const fetchAndStoreEmailsForUser = (imapConfig, knownReceivers) => {
-//     return new Promise((resolve, reject) => {
-//         const imap = new Imap(imapConfig);
+        imap.once('ready', () => {
+            imap.openBox('INBOX', false, (err) => {
+                if (err) return reject(err);
 
-//         imap.once('ready', () => {
-//             imap.openBox('INBOX', false, (err) => {
-//                 if (err) return reject(err);
+                const date = new Date().toLocaleString('en-US', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric'
+                }).replace(',', '');
 
-//                 const date = new Date().toLocaleString('en-US', {
-//                     day: '2-digit',
-//                     month: 'short',
-//                     year: 'numeric'
-//                 }).replace(',', '');
+                imap.search([['ON', date]], (err, uids) => {
+                    if (err) return reject(err);
+                    if (!uids.length) {
+                        imap.end();
+                        return resolve('No new emails');
+                    }
 
-//                 imap.search([['ON', date]], (err, uids) => {
-//                     if (err) return reject(err);
-//                     if (!uids.length) {
-//                         imap.end();
-//                         return resolve('No new emails');
-//                     }
+                    const fetch = imap.fetch(uids, { bodies: '' });
+                    let processedCount = 0;
 
-//                     const fetch = imap.fetch(uids, { bodies: '' });
-//                     let processedCount = 0;
+                    fetch.on('message', (msg) => {
+                        let emailData = {};
 
-//                     fetch.on('message', (msg) => {
-//                         let emailData = {};
+                        msg.on('body', (stream) => {
+                            simpleParser(stream, (err, parsed) => {
+                                if (err) return console.error('Parse error:', err);
 
-//                         msg.on('body', (stream) => {
-//                             simpleParser(stream, (err, parsed) => {
-//                                 if (err) return console.error('Parse error:', err);
+                                const sender = parsed.from?.value?.[0]?.address;
+                                if (!sender || !knownReceivers.has(sender.toLowerCase().trim())) {
+                                    return;
+                                }
 
-//                                 const sender = parsed.from?.value?.[0]?.address;
-//                                 if (!sender || !knownReceivers.has(sender.toLowerCase().trim())) {
-//                                     return;
-//                                 }
+                                let cleanText = '';
+                                if (parsed.text) {
+                                    cleanText = parsed.text
+                                        .replace(/\r\n/g, '\n')
+                                        .replace(/\t/g, '    ');
+                                } else if (parsed.html) {
+                                    cleanText = parsed.html
+                                        .replace(/<br\s*\/?>/gi, '\n')
+                                        .replace(/<\/p>/gi, '\n\n')
+                                        .replace(/<[^>]+>/g, '')
+                                        .replace(/&nbsp;/g, ' ')
+                                        .replace(/ +/g, ' ')
+                                        .trim();
+                                }
 
-//                                 let cleanText = '';
-//                                 if (parsed.text) {
-//                                     cleanText = parsed.text
-//                                         .replace(/\r\n/g, '\n')
-//                                         .replace(/\t/g, '    ');
-//                                 } else if (parsed.html) {
-//                                     cleanText = parsed.html
-//                                         .replace(/<br\s*\/?>/gi, '\n')
-//                                         .replace(/<\/p>/gi, '\n\n')
-//                                         .replace(/<[^>]+>/g, '')
-//                                         .replace(/&nbsp;/g, ' ')
-//                                         .replace(/ +/g, ' ')
-//                                         .trim();
-//                                 }
+                                emailData = {
+                                    message_id: parsed.messageId,
+                                    receiver_email: sender,
+                                    subject: parsed.subject || '(No subject)',
+                                    text: cleanText || '[No text content]',
+                                    type: 'received'
+                                };
 
-//                                 emailData = {
-//                                     message_id: parsed.messageId,
-//                                     receiver_email: sender,
-//                                     subject: parsed.subject || '(No subject)',
-//                                     text: cleanText || '[No text content]',
-//                                     type: 'received'
-//                                 };
+                                db.query(
+                                    'SELECT COUNT(*) AS count FROM emails WHERE message_id = ?',
+                                    [emailData.message_id],
+                                    (err, result) => {
+                                        if (err) return console.error('DB check error:', err);
 
-//                                 db.query(
-//                                     'SELECT COUNT(*) AS count FROM emails WHERE message_id = ?',
-//                                     [emailData.message_id],
-//                                     (err, result) => {
-//                                         if (err) return console.error('DB check error:', err);
+                                        if (result[0].count === 0) {
+                                            db.query(
+                                                'INSERT INTO emails SET ?',
+                                                emailData,
+                                                (err) => {
+                                                    if (err) {
+                                                        console.error('Store error:', err);
+                                                    } else {
+                                                        console.log('Stored email from:', emailData.receiver_email);
 
-//                                         if (result[0].count === 0) {
-//                                             db.query(
-//                                                 'INSERT INTO emails SET ?',
-//                                                 emailData,
-//                                                 (err) => {
-//                                                     if (err) {
-//                                                         console.error('Store error:', err);
-//                                                     } else {
-//                                                         console.log('Stored email from:', emailData.receiver_email);
+                                                        db.query(
+                                                            `SELECT leadid FROM emails 
+                                                             WHERE receiver_email = ? 
+                                                             AND type = 'sent' 
+                                                             ORDER BY created_at DESC 
+                                                             LIMIT 1`,
+                                                            [emailData.receiver_email],
+                                                            (err, sentEmails) => {
+                                                                if (err) return console.error('LeadID error:', err);
 
-//                                                         db.query(
-//                                                             `SELECT leadid FROM emails 
-//                                                              WHERE receiver_email = ? 
-//                                                              AND type = 'sent' 
-//                                                              ORDER BY created_at DESC 
-//                                                              LIMIT 1`,
-//                                                             [emailData.receiver_email],
-//                                                             (err, sentEmails) => {
-//                                                                 if (err) return console.error('LeadID error:', err);
+                                                                if (sentEmails.length > 0) {
+                                                                    const leadId = sentEmails[0].leadid;
+                                                                    const notificationData = {
+                                                                        leadid: leadId,
+                                                                        email: emailData.receiver_email,
+                                                                        subject: emailData.subject,
+                                                                        text: emailData.text,
+                                                                        created_at: new Date()
+                                                                    };
 
-//                                                                 if (sentEmails.length > 0) {
-//                                                                     const leadId = sentEmails[0].leadid;
-//                                                                     const notificationData = {
-//                                                                         leadid: leadId,
-//                                                                         email: emailData.receiver_email,
-//                                                                         subject: emailData.subject,
-//                                                                         text: emailData.text,
-//                                                                         created_at: new Date()
-//                                                                     };
+                                                                    db.query(
+                                                                        'INSERT INTO email_notifications SET ?',
+                                                                        notificationData,
+                                                                        (err) => {
+                                                                            if (err) {
+                                                                                console.error('Notification insert error:', err);
+                                                                            } else {
+                                                                                console.log('Notification stored for lead:', leadId);
+                                                                            }
+                                                                            processedCount++;
+                                                                            if (processedCount === uids.length) {
+                                                                                imap.end();
+                                                                            }
+                                                                        }
+                                                                    );
+                                                                } else {
+                                                                    console.log('No sent mail found for:', emailData.receiver_email);
+                                                                    processedCount++;
+                                                                    if (processedCount === uids.length) {
+                                                                        imap.end();
+                                                                    }
+                                                                }
+                                                            }
+                                                        );
+                                                    }
+                                                }
+                                            );
+                                        } else {
+                                            processedCount++;
+                                            if (processedCount === uids.length) {
+                                                imap.end();
+                                            }
+                                        }
+                                    }
+                                );
+                            });
+                        });
+                    });
 
-//                                                                     db.query(
-//                                                                         'INSERT INTO email_notifications SET ?',
-//                                                                         notificationData,
-//                                                                         (err) => {
-//                                                                             if (err) {
-//                                                                                 console.error('Notification insert error:', err);
-//                                                                             } else {
-//                                                                                 console.log('Notification stored for lead:', leadId);
-//                                                                             }
-//                                                                             processedCount++;
-//                                                                             if (processedCount === uids.length) {
-//                                                                                 imap.end();
-//                                                                             }
-//                                                                         }
-//                                                                     );
-//                                                                 } else {
-//                                                                     console.log('No sent mail found for:', emailData.receiver_email);
-//                                                                     processedCount++;
-//                                                                     if (processedCount === uids.length) {
-//                                                                         imap.end();
-//                                                                     }
-//                                                                 }
-//                                                             }
-//                                                         );
-//                                                     }
-//                                                 }
-//                                             );
-//                                         } else {
-//                                             processedCount++;
-//                                             if (processedCount === uids.length) {
-//                                                 imap.end();
-//                                             }
-//                                         }
-//                                     }
-//                                 );
-//                             });
-//                         });
-//                     });
+                    fetch.once('end', () => {
+                        if (processedCount === uids.length) {
+                            imap.end();
+                        }
+                        resolve('Done fetching emails');
+                    });
 
-//                     fetch.once('end', () => {
-//                         if (processedCount === uids.length) {
-//                             imap.end();
-//                         }
-//                         resolve('Done fetching emails');
-//                     });
+                    fetch.once('error', reject);
+                });
+            });
+        });
 
-//                     fetch.once('error', reject);
-//                 });
-//             });
-//         });
+        imap.once('error', (err) => {
+            console.error(`IMAP error for ${imapConfig.user}:`, err.message);
+            resolve(); // Don't fail the whole batch if one user fails
+        });
 
-//         imap.once('error', (err) => {
-//             console.error(`IMAP error for ${imapConfig.user}:`, err.message);
-//             resolve(); // Don't fail the whole batch if one user fails
-//         });
-
-//         imap.connect();
-//     });
-// };
-
+        imap.connect();
+    });
+};
 
 
 
@@ -768,188 +765,12 @@ const upload = multer({ storage });
 // }
 
 // Automatically Fetch Emails Every 5 Minutes
-// setInterval(() => {
-//     console.log('Checking for new emails...');
-//     fetchAndStoreEmailsForAllUsers().catch((err) => console.error('Error in automatic email fetching:', err));
-// }, 100000); // 5 minutes
-
-
-const fetchAndStoreEmailsForAllUsers = async () => {
-    return new Promise((resolve, reject) => {
-        db.query('SELECT DISTINCT receiver_email FROM emails WHERE type = "sent"', (err, receivers) => {
-            if (err) return reject(err);
-
-            const knownReceivers = new Set(receivers.map(r => r.receiver_email.toLowerCase().trim()));
-
-            db.query('SELECT * FROM email_credentials', async (err, credentials) => {
-                if (err) return reject(err);
-                if (!credentials.length) return resolve('No email credentials found');
-
-                for (const cred of credentials) {
-                    
-
-                        const imapConfig = {
-                            user: cred.sender_email,
-                            password: cred.app_password, // Make sure this is an app password if using 2FA
-                            host: 'imap.titan.email',
-                            port: 993,
-                            tls: true,
-                            tlsOptions: { 
-                                rejectUnauthorized: false 
-                            },
-                            authTimeout: 30000,
-                            // Add these IMAP-specific options:
-                            autotls: 'never',
-                            connTimeout: 30000
-                        };
-
-                    await fetchAndStoreEmailsForUser(imapConfig, knownReceivers);
-                }
-
-                resolve('All email accounts processed');
-            });
-        });
-    });
-};
-
-const fetchAndStoreEmailsForUser = (imapConfig, knownReceivers) => {
-    return new Promise((resolve, reject) => {
-        const imap = new Imap(imapConfig);
-
-        imap.once('ready', () => {
-            imap.openBox('INBOX', false, (err) => {
-                if (err) return reject(err);
-
-                const today = new Date();
-                const searchDate = today.toISOString().split('T')[0];
-
-                imap.search([['SINCE', searchDate]], (err, uids) => {
-                    if (err || !uids.length) {
-                        imap.end();
-                        return resolve('No new emails');
-                    }
-
-                    const fetch = imap.fetch(uids, { bodies: '' });
-                    let processedCount = 0;
-
-                    fetch.on('message', (msg) => {
-                        let emailData = {};
-
-                        msg.on('body', (stream) => {
-                            simpleParser(stream, (err, parsed) => {
-                                if (err) return console.error('Parse error:', err);
-
-                                const sender = parsed.from?.value?.[0]?.address;
-                                if (!sender || !knownReceivers.has(sender.toLowerCase().trim())) {
-                                    processedCount++;
-                                    if (processedCount === uids.length) imap.end();
-                                    return;
-                                }
-
-                                let cleanText = parsed.text || parsed.html?.replace(/<[^>]+>/g, '') || '[No text content]';
-
-                                emailData = {
-                                    message_id: parsed.messageId,
-                                    receiver_email: sender,
-                                    subject: parsed.subject || '(No subject)',
-                                    text: cleanText.trim(),
-                                    type: 'received'
-                                };
-
-                                db.query('SELECT COUNT(*) AS count FROM emails WHERE message_id = ?', [emailData.message_id], (err, result) => {
-                                    if (err) return console.error('DB check error:', err);
-
-                                    if (result[0].count === 0) {
-                                        // First look for the leadid from previous sent emails
-                                        db.query(
-                                            `SELECT leadid FROM emails 
-                                             WHERE receiver_email = ? 
-                                             AND type = 'sent' 
-                                             ORDER BY created_at DESC 
-                                             LIMIT 1`,
-                                            [emailData.receiver_email],
-                                            (err, sentEmails) => {
-                                                if (err) return console.error('LeadID error:', err);
-
-                                                if (sentEmails.length > 0) {
-                                                    const leadId = sentEmails[0].leadid;
-                                                    // Add leadid to the emailData before inserting
-                                                    emailData.leadid = leadId;
-
-                                                    const notificationData = {
-                                                        leadid: leadId,
-                                                        email: emailData.receiver_email,
-                                                        subject: emailData.subject,
-                                                        text: emailData.text,
-                                                        created_at: new Date()
-                                                    };
-
-                                                    // Insert into emails table with leadid
-                                                    db.query('INSERT INTO emails SET ?', emailData, (err) => {
-                                                        if (err) {
-                                                            console.error('Store error:', err);
-                                                        } else {
-                                                            console.log('Stored email from:', emailData.receiver_email);
-                                                            
-                                                            // Insert into notifications table
-                                                            db.query('INSERT INTO email_notifications SET ?', notificationData, (err) => {
-                                                                if (err) console.error('Notification insert error:', err);
-                                                                else console.log('Notification stored for lead:', leadId);
-                                                            });
-                                                        }
-
-                                                        processedCount++;
-                                                        if (processedCount === uids.length) imap.end();
-                                                    });
-                                                } else {
-                                                    // No leadid found, insert without it
-                                                    db.query('INSERT INTO emails SET ?', emailData, (err) => {
-                                                        if (err) {
-                                                            console.error('Store error:', err);
-                                                        } else {
-                                                            console.log('Stored email from:', emailData.receiver_email);
-                                                            console.log('No related sent mail for:', emailData.receiver_email);
-                                                        }
-
-                                                        processedCount++;
-                                                        if (processedCount === uids.length) imap.end();
-                                                    });
-                                                }
-                                            }
-                                        );
-                                    } else {
-                                        processedCount++;
-                                        if (processedCount === uids.length) imap.end();
-                                    }
-                                });
-                            });
-                        });
-                    });
-
-                    fetch.once('end', () => {
-                        if (processedCount === uids.length) imap.end();
-                        resolve('Done fetching emails');
-                    });
-
-                    fetch.once('error', reject);
-                });
-            });
-        });
-
-        imap.once('error', (err) => {
-            console.error(`IMAP error for ${imapConfig.user}:`, err.message);
-            resolve(); // don't break the whole loop
-        });
-
-        imap.connect();
-    });
-};
-
-// Run periodically
 setInterval(() => {
     console.log('Checking for new emails...');
-    fetchAndStoreEmailsForAllUsers().catch((err) => console.error('Error in email fetching:', err));
-}, 100000); // every 5 minutes
+    fetchAndStoreEmailsForAllUsers().catch((err) => console.error('Error in automatic email fetching:', err));
+}, 100000); // 5 minutes
+
+
 
 // POST route to upload file, send email, and store in DB
 router.post("/upload-quotation", upload.single("file"), async (req, res) => {
@@ -1189,13 +1010,13 @@ router.post("/upload-quotation", upload.single("file"), async (req, res) => {
 
 // Get Email History by Email
 router.get("/email-history", (req, res) => {
-    const { leadid } = req.query;
-    if (!leadid) {
-        return res.status(400).json({ error: "Lead ID is required." });
+    const { email } = req.query;
+    if (!email) {
+        return res.status(400).json({ error: "Email is required." });
     }
 
-    const sql = "SELECT * FROM emails WHERE leadid = ? ORDER BY id DESC";
-    db.query(sql, [leadid], (err, results) => {
+    const sql = "SELECT * FROM emails WHERE receiver_email = ? ORDER BY id DESC";
+    db.query(sql, [email, email], (err, results) => {
         if (err) {
             console.error("Error fetching email history:", err);
             return res.status(500).json({ error: "Database error." });
@@ -1203,238 +1024,7 @@ router.get("/email-history", (req, res) => {
         res.json(results);
     });
 });
-// router.get("/email-history", (req, res) => {
-//     const { leadid } = req.query;
-//     if (!leadid) {
-//         return res.status(400).json({ error: "Lead ID is required." });
-//     }
 
-//     // First, get all sent emails with the given leadid to find the associated email addresses
-//     const getSentEmailsSql = "SELECT receiver_email FROM emails WHERE leadid = ? AND type = 'sent'";
-    
-//     db.query(getSentEmailsSql, [leadid], (err, sentEmails) => {
-//         if (err) {
-//             console.error("Error fetching sent emails:", err);
-//             return res.status(500).json({ error: "Database error." });
-//         }
-
-//         if (sentEmails.length === 0) {
-//             // If no sent emails found with this leadid, return empty array
-//             return res.json([]);
-//         }
-
-//         // Extract all unique receiver emails from the sent emails
-//         const receiverEmails = [...new Set(sentEmails.map(email => email.receiver_email))];
-
-//         // Now find all emails where:
-//         // 1. type is 'sent' and leadid matches, OR
-//         // 2. type is 'received' and receiver_email matches any of the sent emails' receiver_email
-//         const getEmailHistorySql = `
-//             SELECT * FROM emails 
-//             WHERE (type = 'sent' AND leadid = ?) 
-//                OR (type = 'received' AND receiver_email IN (?))
-//             ORDER BY id DESC
-//         `;
-
-//         db.query(getEmailHistorySql, [leadid, receiverEmails], (err, results) => {
-//             if (err) {
-//                 console.error("Error fetching email history:", err);
-//                 return res.status(500).json({ error: "Database error." });
-//             }
-//             res.json(results);
-//         });
-//     });
-// });
-
-// In your Express route
-// app.get('/api/received-mails/:leadid', (req, res) => {
-//     const leadid = req.params.leadid;
-//     const query = `
-//       SELECT * FROM emails 
-//       WHERE type = 'received' 
-//       AND leadid = ?
-//       ORDER BY created_at DESC
-//     `;
-  
-//     db.query(query, [leadid], (err, results) => {
-//       if (err) return res.status(500).json({ error: err });
-//       res.json(results);
-//     });
-//   });
-// router.get("/email-history", (req, res) => {
-//     const { leadid } = req.query;
-  
-//     if (!leadid) {
-//       return res.status(400).json({ error: "Lead ID is required." });
-//     }
-  
-//     const getSentEmailsQuery = `
-//       SELECT * FROM emails 
-//       WHERE leadid = ? AND type = 'sent'
-//       ORDER BY id DESC
-//     `;
-  
-//     db.query(getSentEmailsQuery, [leadid], (err, sentResults) => {
-//       if (err) {
-//         console.error("Error fetching sent emails:", err);
-//         return res.status(500).json({ error: "Database error." });
-//       }
-  
-//       if (sentResults.length === 0) {
-//         return res.json([]);
-//       }
-  
-//       const lastSentEmail = sentResults[0];
-//       const subject = lastSentEmail.subject || "";
-//       const replySubjectLike = `Re: ${subject}`;
-  
-//       const getRepliesQuery = `
-//         SELECT * FROM emails 
-//         WHERE leadid = ? 
-//           AND subject LIKE ? 
-//           AND type = 'received'
-//         ORDER BY id ASC
-//       `;
-  
-//       db.query(getRepliesQuery, [leadid, `%${replySubjectLike}%`], (err, replyResults) => {
-//         if (err) {
-//           console.error("Error fetching replies:", err);
-//           return res.status(500).json({ error: "Database error." });
-//         }
-  
-//         const allMessages = [lastSentEmail, ...replyResults];
-//         allMessages.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-//         res.json(allMessages);
-//       });
-//     });
-//   });
-// Fetch email history for a specific leadid and subject
-// Backend API to fetch email history based on leadid and subject
-// router.get("/email-history", (req, res) => {
-//     const { email, leadid } = req.query;
-    
-//     if (!email) {
-//         return res.status(400).json({ error: "Email is required." });
-//     }
-
-//     // Query to get emails with derived leadid for received emails
-//     const sql = `
-//         SELECT e.*, 
-//             CASE 
-//                 WHEN e.type = 'received' THEN (
-//                     SELECT s.leadid 
-//                     FROM emails s 
-//                     WHERE s.receiver_email = e.receiver_email 
-//                     AND s.type = 'sent' 
-//                     AND s.created_at <= e.created_at 
-//                     ORDER BY s.created_at DESC 
-//                     LIMIT 1
-//                 )
-//                 ELSE e.leadid
-//             END AS derived_leadid
-//         FROM emails e
-//         WHERE e.receiver_email = ?
-//         ${leadid ? 'HAVING derived_leadid = ?' : ''}
-//         ORDER BY created_at DESC
-//     `;
-
-//     const params = leadid ? [email, leadid] : [email];
-
-//     db.query(sql, params, (err, results) => {
-//         if (err) {
-//             console.error("Error fetching email history:", err);
-//             return res.status(500).json({ error: "Database error." });
-//         }
-        
-//         // Group by derived_leadid if no specific leadid was requested
-//         if (!leadid) {
-//             const grouped = {};
-//             results.forEach(email => {
-//                 const key = email.derived_leadid || 'no_leadid';
-//                 if (!grouped[key]) {
-//                     grouped[key] = [];
-//                 }
-//                 grouped[key].push(email);
-//             });
-//             return res.json(grouped);
-//         }
-        
-//         res.json(results);
-//     });
-// });
-// router.get("/email-history", (req, res) => {
-//     const { email, leadid } = req.query;
-    
-//     if (!email) {
-//         return res.status(400).json({ error: "Email is required." });
-//     }
-
-//     // Improved query to handle both sent and received emails
-//     const sql = `
-//         WITH email_threads AS (
-//             SELECT 
-//                 e.*,
-//                 CASE 
-//                     WHEN e.type = 'received' THEN (
-//                         SELECT s.leadid 
-//                         FROM emails s 
-//                         WHERE s.receiver_email = e.receiver_email 
-//                         AND s.type = 'sent'
-//                         AND s.leadid IS NOT NULL
-//                         AND s.created_at <= e.created_at 
-//                         ORDER BY s.created_at DESC 
-//                         LIMIT 1
-//                     )
-//                     ELSE e.leadid
-//                 END AS thread_leadid,
-//                 CASE
-//                     WHEN e.type = 'received' THEN (
-//                         SELECT s.id
-//                         FROM emails s 
-//                         WHERE s.receiver_email = e.receiver_email 
-//                         AND s.type = 'sent'
-//                         AND s.leadid IS NOT NULL
-//                         AND s.created_at <= e.created_at 
-//                         ORDER BY s.created_at DESC 
-//                         LIMIT 1
-//                     )
-//                     ELSE e.id
-//                 END AS thread_id
-//             FROM emails e
-//             WHERE e.receiver_email = ?
-//             OR (e.sender_email = ? AND e.type = 'sent')
-//         )
-//         SELECT * FROM email_threads
-//         ${leadid ? 'WHERE thread_leadid = ?' : ''}
-//         ORDER BY created_at DESC
-//     `;
-
-//     const params = leadid ? [email, email, leadid] : [email, email];
-
-//     db.query(sql, params, (err, results) => {
-//         if (err) {
-//             console.error("Error fetching email history:", err);
-//             return res.status(500).json({ error: "Database error." });
-//         }
-        
-//         // Group by thread_leadid if no specific leadid was requested
-//         if (!leadid) {
-//             const grouped = {};
-//             results.forEach(email => {
-//                 const key = email.thread_leadid || 'no_leadid';
-//                 if (!grouped[key]) {
-//                     grouped[key] = [];
-//                 }
-//                 grouped[key].push(email);
-//             });
-//             return res.json(grouped);
-//         }
-        
-//         res.json(results);
-//     });
-// });
-
-  
 // Update email status using leadid
 router.post("/update-email-status", (req, res) => {
     const { leadid } = req.body;
@@ -1877,330 +1467,30 @@ router.get("/latest-quotation", async (req, res) => {
 //   });
   
   
-// router.post("/post-from-email", upload.single("file"), async (req, res) => {
-//     const {
-//       leadid,
-//       receiver_email,
-//       subject,
-//       text,
-//       type,
-//       reply_to_message_id,
-//       is_plain_text,
-//       quotation_id,
-//       sender_email,
-//     } = req.body;
-  
-//     const file_path = req.file ? `/uploads/${req.file.filename}` : null;
-  
-//     console.log("REQ BODY:", req.body);
-//     console.log("REQ FILE:", req.file);
-  
-//     if (!leadid || !receiver_email || (!text && !file_path) || !type || !sender_email) {
-//       return res.status(400).json({ error: "Missing required fields." });
-//     }
-  
-//     try {
-//       // ✅ Fetch sender's credentials
-//       const [credentials] = await new Promise((resolve, reject) => {
-//         db.query(
-//           `SELECT sender_email, app_password FROM email_credentials WHERE sender_email = ? LIMIT 1`,
-//           [sender_email],
-//           (err, result) => {
-//             if (err) reject(err);
-//             else resolve(result);
-//           }
-//         );
-//       });
-  
-//       if (!credentials) {
-//         return res.status(403).json({ error: "Invalid sender email or credentials not found." });
-//       }
-  
-//       // ✅ Setup transporter
-//       const transporter = nodemailer.createTransport({
-//         service: "gmail",
-//         auth: {
-//           user: credentials.sender_email,
-//           pass: credentials.app_password,
-//         },
-//         tls: { rejectUnauthorized: false },
-//       });
-  
-//       // ✅ Generate new quotation_id if needed
-//       let newQuotationId = quotation_id;
-//       if (!newQuotationId && file_path) {
-//         const latestQuotation = await new Promise((resolve, reject) => {
-//           db.query(
-//             `SELECT quotation_id FROM emails WHERE quotation_id IS NOT NULL ORDER BY id DESC LIMIT 1`,
-//             (err, results) => {
-//               if (err) reject(err);
-//               else resolve(results);
-//             }
-//           );
-//         });
-  
-//         if (latestQuotation.length > 0 && latestQuotation[0].quotation_id) {
-//           const lastNum = parseInt(latestQuotation[0].quotation_id.replace("Qu00", ""), 10);
-//           newQuotationId = `Qu00${lastNum + 1}`;
-//         } else {
-//           newQuotationId = "Qu001";
-//         }
-//       }
-  
-//       // ✅ Email options
-//       const mailOptions = {
-//         from: credentials.sender_email,
-//         to: receiver_email,
-//         subject: subject,
-//         // 👇 send HTML if it's not plain text
-//         ...(is_plain_text === "true"
-//           ? { text: text || "" }
-//           : { html: text || "" }),
-//         attachments: file_path ? [{ path: path.join(uploadDir, req.file.filename) }] : [],
-//         headers: (!is_plain_text && reply_to_message_id)
-//           ? { "In-Reply-To": reply_to_message_id, References: reply_to_message_id }
-//           : {},
-//       };
-      
-      
-  
-//       // ✅ Send Email
-//       let info;
-//       try {
-//         info = await transporter.sendMail(mailOptions);
-//         console.log("Email sent:", info.messageId);
-//       } catch (smtpErr) {
-//         console.error("SMTP Error:", smtpErr);
-//         return res.status(500).json({ error: "Failed to send via SMTP", details: smtpErr.message });
-//       }
-  
-//       // ✅ Save to DB
-//       const insertQuery = `
-//         INSERT INTO emails (
-//           leadid, receiver_email, subject, text, file_path, type,
-//           email_sent, message_id, quotation_id, sender_email
-//         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-//       `;
-  
-//       const insertValues = [
-//         leadid,
-//         receiver_email,
-//         subject,
-//         text || "",
-//         file_path,
-//         type,
-//         1,
-//         info.messageId,
-//         newQuotationId,
-//         sender_email,
-//       ];
-  
-//       db.query(insertQuery, insertValues, (err, result) => {
-//         if (err) {
-//           console.error("DB Insert Error:", err);
-//           return res.status(500).json({ error: "Database error while inserting email." });
-//         }
-  
-//         // ✅ Update quotation_id in travel_opportunity
-//         db.query(
-//           `UPDATE travel_opportunity SET quotation_id = ? WHERE leadid = ?`,
-//           [newQuotationId, leadid],
-//           (updateErr) => {
-//             if (updateErr) {
-//               console.error("Update Quotation Error:", updateErr);
-//               return res.status(500).json({ error: "Failed to update quotation_id." });
-//             }
-  
-//             res.json({
-//               message: "Email sent and saved successfully!",
-//               message_id: info.messageId,
-//               quotation_id: newQuotationId,
-//             });
-//           }
-//         );
-//       });
-//     } catch (error) {
-//       console.error("Server Error:", error);
-//       res.status(500).json({ error: "Internal server error", details: error.message });
-//     }
-//   });
-
-//---working-->
-// router.post("/post-from-email", upload.single("file"), async (req, res) => {
-//     const {
-//       leadid,
-//       receiver_email,
-//       subject,
-//       text,
-//       type,
-//       reply_to_message_id,
-//       is_plain_text,
-//       quotation_id,
-//       sender_email,
-//     } = req.body;
-  
-//     const file_path = req.file ? `/uploads/${req.file.filename}` : null;
-  
-//     console.log("REQ BODY:", req.body);
-//     console.log("REQ FILE:", req.file);
-  
-//     if (!leadid || !receiver_email || (!text && !file_path) || !type || !sender_email) {
-//       return res.status(400).json({ error: "Missing required fields." });
-//     }
-  
-//     try {
-//       // ✅ Fetch sender's credentials
-//       const [credentials] = await new Promise((resolve, reject) => {
-//         db.query(
-//           `SELECT sender_email, app_password FROM email_credentials WHERE sender_email = ? LIMIT 1`,
-//           [sender_email],
-//           (err, result) => {
-//             if (err) reject(err);
-//             else resolve(result);
-//           }
-//         );
-//       });
-  
-//       if (!credentials) {
-//         return res.status(403).json({ error: "Invalid sender email or credentials not found." });
-//       }
-  
-//       // ✅ Dynamically set transporter
-//       let transporter;
-//       if (credentials.sender_email.endsWith("@iiiqai.com")) {
-//         transporter = nodemailer.createTransport({
-//           host: "smtp.titan.email",
-//           port: 465,
-//           secure: true,
-//           auth: {
-//             user: credentials.sender_email,
-//             pass: credentials.app_password,
-//           },
-//         });
-//       } else {
-//         transporter = nodemailer.createTransport({
-//           service: "gmail",
-//           auth: {
-//             user: credentials.sender_email,
-//             pass: credentials.app_password,
-//           },
-//           tls: { rejectUnauthorized: false },
-//         });
-//       }
-  
-//       // ✅ Generate new quotation_id if needed
-//       let newQuotationId = quotation_id;
-//       if (!newQuotationId && file_path) {
-//         const latestQuotation = await new Promise((resolve, reject) => {
-//           db.query(
-//             `SELECT quotation_id FROM emails WHERE quotation_id IS NOT NULL ORDER BY id DESC LIMIT 1`,
-//             (err, results) => {
-//               if (err) reject(err);
-//               else resolve(results);
-//             }
-//           );
-//         });
-  
-//         if (latestQuotation.length > 0 && latestQuotation[0].quotation_id) {
-//           const lastNum = parseInt(latestQuotation[0].quotation_id.replace("Qu00", ""), 10);
-//           newQuotationId = `Qu00${lastNum + 1}`;
-//         } else {
-//           newQuotationId = "Qu001";
-//         }
-//       }
-  
-//       // ✅ Email options
-//       const mailOptions = {
-//         from: credentials.sender_email,
-//         to: receiver_email,
-//         subject: subject,
-//         ...(is_plain_text === "true" ? { text: text || "" } : { html: text || "" }),
-//         attachments: file_path ? [{ path: path.join(uploadDir, req.file.filename) }] : [],
-//         headers:
-//           !is_plain_text && reply_to_message_id
-//             ? { "In-Reply-To": reply_to_message_id, References: reply_to_message_id }
-//             : {},
-//       };
-  
-//       // ✅ Send Email
-//       let info;
-//       try {
-//         info = await transporter.sendMail(mailOptions);
-//         console.log("Email sent:", info.messageId);
-//       } catch (smtpErr) {
-//         console.error("SMTP Error:", smtpErr);
-//         return res.status(500).json({ error: "Failed to send via SMTP", details: smtpErr.message });
-//       }
-  
-//       // ✅ Save to DB
-//       const insertQuery = `
-//         INSERT INTO emails (
-//           leadid, receiver_email, subject, text, file_path, type,
-//           email_sent, message_id, quotation_id, sender_email
-//         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-//       `;
-  
-//       const insertValues = [
-//         leadid,
-//         receiver_email,
-//         subject,
-//         text || "",
-//         file_path,
-//         type,
-//         1,
-//         info.messageId,
-//         newQuotationId,
-//         sender_email,
-//       ];
-  
-//       db.query(insertQuery, insertValues, (err, result) => {
-//         if (err) {
-//           console.error("DB Insert Error:", err);
-//           return res.status(500).json({ error: "Database error while inserting email." });
-//         }
-  
-//         // ✅ Update quotation_id in travel_opportunity
-//         db.query(
-//           `UPDATE travel_opportunity SET quotation_id = ? WHERE leadid = ?`,
-//           [newQuotationId, leadid],
-//           (updateErr) => {
-//             if (updateErr) {
-//               console.error("Update Quotation Error:", updateErr);
-//               return res.status(500).json({ error: "Failed to update quotation_id." });
-//             }
-  
-//             res.json({
-//               message: "Email sent and saved successfully!",
-//               message_id: info.messageId,
-//               quotation_id: newQuotationId,
-//             });
-//           }
-//         );
-//       });
-//     } catch (error) {
-//       console.error("Server Error:", error);
-//       res.status(500).json({ error: "Internal server error", details: error.message });
-//     }
-//   });
-
-router.post("/send-bulk-emails", upload.single("file"), async (req, res) => {
+router.post("/post-from-email", upload.single("file"), async (req, res) => {
     const {
       leadid,
+      receiver_email,
       subject,
       text,
       type,
+      reply_to_message_id,
       is_plain_text,
+      quotation_id,
       sender_email,
     } = req.body;
   
-    const receiver_emails = JSON.parse(req.body.receiver_emails || "[]");
     const file_path = req.file ? `/uploads/${req.file.filename}` : null;
   
-    if (!leadid || receiver_emails.length === 0 || (!text && !file_path) || !type || !sender_email) {
+    console.log("REQ BODY:", req.body);
+    console.log("REQ FILE:", req.file);
+  
+    if (!leadid || !receiver_email || (!text && !file_path) || !type || !sender_email) {
       return res.status(400).json({ error: "Missing required fields." });
     }
   
     try {
+      // ✅ Fetch sender's credentials
       const [credentials] = await new Promise((resolve, reject) => {
         db.query(
           `SELECT sender_email, app_password FROM email_credentials WHERE sender_email = ? LIMIT 1`,
@@ -2216,58 +1506,118 @@ router.post("/send-bulk-emails", upload.single("file"), async (req, res) => {
         return res.status(403).json({ error: "Invalid sender email or credentials not found." });
       }
   
-      let transporter = credentials.sender_email.endsWith("@iiiqai.com")
-        ? nodemailer.createTransport({
-            host: "smtp.titan.email",
-            port: 465,
-            secure: true,
-            auth: { user: credentials.sender_email, pass: credentials.app_password },
-            tls: { rejectUnauthorized: false },
-          })
-        : nodemailer.createTransport({
-            service: "gmail",
-            auth: { user: credentials.sender_email, pass: credentials.app_password },
-            tls: { rejectUnauthorized: false },
-          });
+      // ✅ Setup transporter
+      const transporter = nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+          user: credentials.sender_email,
+          pass: credentials.app_password,
+        },
+        tls: { rejectUnauthorized: false },
+      });
   
-      const results = [];
+      // ✅ Generate new quotation_id if needed
+      let newQuotationId = quotation_id;
+      if (!newQuotationId && file_path) {
+        const latestQuotation = await new Promise((resolve, reject) => {
+          db.query(
+            `SELECT quotation_id FROM emails WHERE quotation_id IS NOT NULL ORDER BY id DESC LIMIT 1`,
+            (err, results) => {
+              if (err) reject(err);
+              else resolve(results);
+            }
+          );
+        });
   
-      for (const receiver_email of receiver_emails) {
-        const mailOptions = {
-          from: credentials.sender_email,
-          to: receiver_email,
-          subject: subject,
-          ...(is_plain_text === "true" ? { text: text } : { html: text }),
-          attachments: file_path ? [{ path: path.join(uploadDir, req.file.filename) }] : [],
-        };
-  
-        try {
-          const info = await transporter.sendMail(mailOptions);
-          console.log(`Email sent to ${receiver_email}: ${info.messageId}`);
-  
-          // Insert into DB
-          await new Promise((resolve, reject) => {
-            db.query(
-              `INSERT INTO emails (leadid, receiver_email, subject, text, file_path, type, email_sent, message_id, sender_email) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-              [leadid, receiver_email, subject, text || "", file_path, type, 1, info.messageId, sender_email],
-              (err, result) => (err ? reject(err) : resolve(result))
-            );
-          });
-  
-          results.push({ email: receiver_email, success: true });
-        } catch (err) {
-          console.error(`Failed to send email to ${receiver_email}`, err);
-          results.push({ email: receiver_email, success: false, error: err.message });
+        if (latestQuotation.length > 0 && latestQuotation[0].quotation_id) {
+          const lastNum = parseInt(latestQuotation[0].quotation_id.replace("Qu00", ""), 10);
+          newQuotationId = `Qu00${lastNum + 1}`;
+        } else {
+          newQuotationId = "Qu001";
         }
       }
   
-      res.json({ message: "Bulk email sending complete", results });
+      // ✅ Email options
+      const mailOptions = {
+        from: credentials.sender_email,
+        to: receiver_email,
+        subject: subject,
+        // 👇 send HTML if it's not plain text
+        ...(is_plain_text === "true"
+          ? { text: text || "" }
+          : { html: text || "" }),
+        attachments: file_path ? [{ path: path.join(uploadDir, req.file.filename) }] : [],
+        headers: (!is_plain_text && reply_to_message_id)
+          ? { "In-Reply-To": reply_to_message_id, References: reply_to_message_id }
+          : {},
+      };
+      
+      
+  
+      // ✅ Send Email
+      let info;
+      try {
+        info = await transporter.sendMail(mailOptions);
+        console.log("Email sent:", info.messageId);
+      } catch (smtpErr) {
+        console.error("SMTP Error:", smtpErr);
+        return res.status(500).json({ error: "Failed to send via SMTP", details: smtpErr.message });
+      }
+  
+      // ✅ Save to DB
+      const insertQuery = `
+        INSERT INTO emails (
+          leadid, receiver_email, subject, text, file_path, type,
+          email_sent, message_id, quotation_id, sender_email
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+  
+      const insertValues = [
+        leadid,
+        receiver_email,
+        subject,
+        text || "",
+        file_path,
+        type,
+        1,
+        info.messageId,
+        newQuotationId,
+        sender_email,
+      ];
+  
+      db.query(insertQuery, insertValues, (err, result) => {
+        if (err) {
+          console.error("DB Insert Error:", err);
+          return res.status(500).json({ error: "Database error while inserting email." });
+        }
+  
+        // ✅ Update quotation_id in travel_opportunity
+        db.query(
+          `UPDATE travel_opportunity SET quotation_id = ? WHERE leadid = ?`,
+          [newQuotationId, leadid],
+          (updateErr) => {
+            if (updateErr) {
+              console.error("Update Quotation Error:", updateErr);
+              return res.status(500).json({ error: "Failed to update quotation_id." });
+            }
+  
+            res.json({
+              message: "Email sent and saved successfully!",
+              message_id: info.messageId,
+              quotation_id: newQuotationId,
+            });
+          }
+        );
+      });
     } catch (error) {
-      console.error("Bulk Send Error:", error);
-      res.status(500).json({ error: "Server error", details: error.message });
+      console.error("Server Error:", error);
+      res.status(500).json({ error: "Internal server error", details: error.message });
     }
   });
-  
+
+
+
+
 
 
 

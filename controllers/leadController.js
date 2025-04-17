@@ -174,7 +174,8 @@ exports.managercreateLead = (req, res) => {
     managerid,
     admin,
     employee_id,
-    manager_id
+    manager_id,
+    managerAssign
   } = req.body;
 
   const destinationString = destination.join(", ");
@@ -226,8 +227,8 @@ exports.managercreateLead = (req, res) => {
           primarySource, secondarysource, origincity, destination,
           another_name, another_email, another_phone_number,
           corporate_id, description, assignedSalesId, assignedSalesName,
-          assign_to_manager, managerid, customerid, customer_status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          assign_to_manager, managerid, customerid, customer_status,managerAssign
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)
       `;
       const leadData = [
         lead_type, name, email, phone_number, country_code,
@@ -235,12 +236,13 @@ exports.managercreateLead = (req, res) => {
         another_name, another_email, another_phone_number,
         corporate_id ? Number(corporate_id) : null,
         description,
-        assignedSalesId ? Number(assignedSalesId) : null,
+        isNaN(Number(assignedSalesId)) ? null : Number(assignedSalesId),
         assignedSalesName,
         assign_to_manager,
         managerid ? Number(managerid) : null,
         customerId,
-        customerStatus
+        customerStatus,
+        managerAssign
       ];
 
       db.query(insertLeadQuery, leadData, (err, result) => {
@@ -325,7 +327,8 @@ exports.admincreateLead = (req, res) => {
     managerid,
     admin,
     employee_id,
-    manager_id
+    manager_id,
+    adminAssign 
   } = req.body;
 
   const destinationString = destination.join(", ");
@@ -377,8 +380,8 @@ exports.admincreateLead = (req, res) => {
           primarySource, secondarysource, origincity, destination,
           another_name, another_email, another_phone_number,
           corporate_id, description, assignedSalesId, assignedSalesName,
-          assign_to_manager, managerid, customerid, customer_status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          assign_to_manager, managerid, customerid, customer_status,adminAssign  
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)
       `;
       const leadData = [
         lead_type, name, email, phone_number, country_code,
@@ -389,9 +392,10 @@ exports.admincreateLead = (req, res) => {
         assignedSalesId ? Number(assignedSalesId) : null,
         assignedSalesName,
         assign_to_manager,
-        managerid ? Number(managerid) : null,
+        isNaN(Number(managerid)) ? null : Number(managerid),
         customerId,
-        customerStatus
+        customerStatus,
+        adminAssign || null 
       ];
 
       db.query(insertLeadQuery, leadData, (err, result) => {

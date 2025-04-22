@@ -21,21 +21,20 @@ router.get('/suppliers', (req, res) => {
   });
 });
   
-  // GET supplier payment history
-  router.get('/suppliers/:id/history', (req, res) => {
-    const { id } = req.params;
-    db.query(
-      'SELECT paid_amount, paid_on, next_payment FROM payment_log WHERE supplier_id = ? ORDER BY paid_on DESC',
-      [id],
-      (err, results) => {
-        if (err) {
-          return res.status(500).json({ error: 'Failed to fetch history' });
-        }
-        res.json(results);
+router.get('/suppliers/:id/history', (req, res) => {
+  const { id } = req.params;
+  db.query(
+    'SELECT id, supplier_id, paid_amount, paid_on, next_payment, status FROM payment_log WHERE supplier_id = ? ORDER BY paid_on DESC',
+    [id],
+    (err, results) => {
+      if (err) {
+        return res.status(500).json({ error: 'Failed to fetch history' });
       }
-    );
-  });
-  
+      res.json(results);
+    }
+  );
+});
+
  
   router.post('/suppliers', (req, res) => {
     const {

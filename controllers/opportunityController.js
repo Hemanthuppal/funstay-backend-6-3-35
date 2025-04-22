@@ -243,6 +243,7 @@ exports.updateOpportunityStatus = (req, res) => {
   const { leadId } = req.params;
   const { opportunity_status1, opportunity_status2 } = req.body;
 
+
   if (!opportunity_status1 && !opportunity_status2) {
     return res.status(400).json({ message: 'At least one status field is required.' });
   }
@@ -258,7 +259,8 @@ exports.updateOpportunityStatus = (req, res) => {
     query += 'opportunity_status2 = ?, ';
     params.push(opportunity_status2);
   }
-
+ // Add the timestamp for status update
+  query += 'status_updated_at = NOW(), ';
   // Remove trailing comma and space
   query = query.slice(0, -2);
   query += ' WHERE leadid = ?';

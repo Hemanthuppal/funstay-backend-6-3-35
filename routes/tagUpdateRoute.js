@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const db = require("../config/db");
 
-// Update travel_opportunity table with selected tag
+// Update travel_opportunity table with selected tag and update tagged_date
 router.put("/travel_opportunity/:id", (req, res) => {
     const { id } = req.params;
     const { tag } = req.body;
@@ -11,7 +11,12 @@ router.put("/travel_opportunity/:id", (req, res) => {
         return res.status(400).json({ error: "Tag is required" });
     }
 
-    const sql = "UPDATE travel_opportunity SET tag = ? WHERE id = ?";
+    const sql = `
+        UPDATE travel_opportunity 
+        SET tag = ?, tagged_date = NOW() 
+        WHERE id = ?
+    `;
+
     db.query(sql, [tag, id], (err, result) => {
         if (err) {
             return res.status(500).json({ error: "Database error", details: err.message });
@@ -19,8 +24,9 @@ router.put("/travel_opportunity/:id", (req, res) => {
         if (result.affectedRows === 0) {
             return res.status(404).json({ error: "No record found with this ID" });
         }
-        res.json({ message: "Tag updated successfully" });
+        res.json({ message: "Tag and tagged_date updated successfully" });
     });
 });
+
 
 module.exports = router;

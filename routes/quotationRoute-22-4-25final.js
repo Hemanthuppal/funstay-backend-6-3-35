@@ -2192,6 +2192,7 @@ router.post("/send-bulk-emails", upload.single("file"), async (req, res) => {
       is_plain_text,
       sender_email,
     } = req.body;
+    console.log("REQ BODY:", req.body);
   
     const receiver_emails = JSON.parse(req.body.receiver_emails || "[]");
     const file_path = req.file ? `/uploads/${req.file.filename}` : null;

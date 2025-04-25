@@ -35,9 +35,11 @@ const quotationRoutes = require("./routes/quotationRoutes");
 const tagRoutes = require('./routes/tagRoutes');
 const tagUpdateRoutes = require('./routes/tagUpdateRoute');
 const filterTagRoute = require('./routes/filterTagRoute');
-// const quotationRoute = require('./routes/quotationRoute');
+const quotationRoute = require('./routes/quotationRoute_old_rajesh');
 const supplierRoute = require('./routes/supplierRoute');
 const paymentsRoute = require('./routes/paymentsRoute');
+const reportRoute = require('./routes/ReportRoute');
+const supplierlistRoute = require('./routes/supplierlistRoute');
 // const emailRoutes = require('./routes/email');
 
 const app = express();
@@ -83,9 +85,11 @@ app.use("/api/quotations", quotationRoutes);
 app.use('/api', tagRoutes);
 app.use('/api', tagUpdateRoutes);
 app.use('/api', filterTagRoute);
-// app.use('/api', quotationRoute);
+app.use('/api', quotationRoute);
 app.use('/api', supplierRoute);
 app.use('/api', paymentsRoute);
+app.use('/', reportRoute);
+app.use('/api', supplierlistRoute);
 // app.use('/api', emailRoutes);
 
 app.listen(PORT, () => {

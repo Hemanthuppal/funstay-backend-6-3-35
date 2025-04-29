@@ -2270,7 +2270,20 @@ router.post("/send-bulk-emails", upload.single("file"), async (req, res) => {
   });
   
 
-
+  router.post('/credentials', (req, res) => {
+    const { sender_email, app_password } = req.body;
+  
+    // Insert the data into the MySQL database
+    const query = 'INSERT INTO email_credentials (sender_email, app_password) VALUES (?, ?)';
+    db.query(query, [sender_email, app_password], (err, result) => {
+      if (err) {
+        console.error('Error inserting data into database: ', err);
+        return res.status(500).json({ message: 'Failed to insert credentials' });
+      }
+      console.log('Data inserted successfully: ', result);
+      res.status(200).json({ message: 'Credential saved successfully!' });
+    });
+  });
 
 
 

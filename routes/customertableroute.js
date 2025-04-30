@@ -225,6 +225,7 @@ router.put('/api/travel-opportunities/:id', (req, res) => {
       children_count = ?, 
       child_ages = ?, 
       approx_budget = ?, 
+      total_amount = ?, 
       reminder_setting = ?, 
       notes = ? 
     WHERE id = ?
@@ -241,6 +242,7 @@ router.put('/api/travel-opportunities/:id', (req, res) => {
       adults_count,
       children_count,
       child_ages,
+      approx_budget,
       approx_budget,
       reminder_setting,
       notes,

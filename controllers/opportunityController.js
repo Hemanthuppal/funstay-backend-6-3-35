@@ -123,6 +123,7 @@ exports.createOpportunity = (req, res) => {
     children_count,
     child_ages,
     approx_budget,
+    approx_budget,
     assignee,
     notes,
     description,

@@ -1,4 +1,5 @@
 const travelOpportunityModel = require('../models/travelOpportunityModel');
+const db = require('../config/db'); 
 
 // Controller to fetch all travel opportunities
 const getTravelOpportunities = (req, res) => {
@@ -39,25 +40,37 @@ const getTravelOpportunities = (req, res) => {
 // PUT controller to update approx_budget
 const updateTravelOpportunity = (req, res) => {
   const opportunityId = req.params.id;
-  const { approx_budget } = req.body;
+  const { approx_budget, leadid, userid } = req.body;
 
   if (!approx_budget || isNaN(approx_budget)) {
-    return res.status(400).json({ error: 'Invalid approx_budget' });
+      return res.status(400).json({ error: 'Invalid approx_budget' });
   }
 
+  // Update the budget in travel_opportunity
   travelOpportunityModel.updateApproxBudget(opportunityId, approx_budget, (error, result) => {
-    if (error) {
-      console.error('Error updating travel opportunity:', error);
-      return res.status(500).json({ error: 'Failed to update approx_budget' });
-    }
+      if (error) {
+          console.error("Update failed:", error);
+          return res.status(500).json({ error: 'Failed to update approx_budget' });
+      }
 
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: 'Travel opportunity not found' });
-    }
+     
 
-    res.status(200).json({ message: 'Approx budget updated successfully' });
+      const insertQuery = `
+          INSERT INTO total_amount_history (leadid, total_amount, userid)
+          VALUES (?, ?, ?)
+      `;
+
+      db.query(insertQuery, [leadid, approx_budget, userid], (err, result) => {
+          if (err) {
+              console.error("Failed to log history:", err);
+              return res.status(500).json({ error: 'Updated but failed to log history' });
+          }
+
+          return res.json({ message: 'Approx budget updated and history logged' });
+      });
   });
 };
+
 
 
 module.exports = {

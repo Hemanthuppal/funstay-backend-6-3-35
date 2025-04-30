@@ -10,7 +10,7 @@ router.get('/suppliers', (req, res) => {
       return res.status(400).json({ error: 'leadid parameter is required' });
   }
 
-  const query = 'SELECT * FROM suppliers WHERE leadid = ?';
+  const query = 'SELECT * FROM suppliers WHERE leadid = ?  ORDER BY paid_on DESC';
   
   db.query(query, [leadid], (err, results) => {
       if (err) {
@@ -56,6 +56,7 @@ router.get('/suppliers/:id/history', (req, res) => {
  
   router.post('/suppliers', (req, res) => {
     const {
+      supplierId,
       supplierName,
       totalPayable,
       paidOn,
@@ -73,14 +74,15 @@ router.get('/suppliers/:id/history', (req, res) => {
   
     const insertSupplier = `
       INSERT INTO suppliers 
-      (supplier_name, total_payable, paid_on, paid_amount, balance_payment, comments, next_payment,purpose, leadid,
+      (supplierlist_id,supplier_name, total_payable, paid_on, paid_amount, balance_payment, comments, next_payment,purpose, leadid,
       userid, username, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
   
     db.query(
       insertSupplier,
       [
+        supplierId,
         supplierName, 
         totalPayable, 
         paidOn, 

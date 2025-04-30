@@ -122,6 +122,24 @@ router.get("/payments", (req, res) => {
     });
   });
 
+  router.get('/receivables', (req, res) => {
+    const query = `
+      SELECT r.*, a.name 
+      FROM receivables r
+      JOIN addleads a ON r.leadid = a.leadid
+    `;
+  
+    db.query(query, (err, results) => {
+      if (err) {
+        console.error('Error fetching receivables with customer names:', err);
+        res.status(500).json({ error: 'Database query failed' });
+      } else {
+        res.json(results);
+      }
+    });
+  });
+  
+
   // Get a single payment by ID
 router.get("/payments/:id", (req, res) => {
   const paymentId = req.params.id;

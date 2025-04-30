@@ -20,6 +20,24 @@ router.get('/suppliers', (req, res) => {
       res.json(results);
   });
 });
+
+router.get('/approval/suppliers', (req, res) => {
+  const query = `
+    SELECT s.*, a.name
+    FROM suppliers s
+    JOIN addleads a ON s.leadid = a.leadid
+  `;
+
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error('Error fetching suppliers with customer names:', err);
+      res.status(500).json({ error: 'Database query failed' });
+    } else {
+      res.json(results);
+    }
+  });
+});
+
   
 router.get('/suppliers/:id/history', (req, res) => {
   const { id } = req.params;

@@ -36,33 +36,79 @@ router.get('/suppliers/:id/history', (req, res) => {
 });
 
  
-router.post('/suppliers', async (req, res) => {
-  try {
+  router.post('/suppliers', (req, res) => {
     const {
-      supplierId, supplierName, totalPayable, paidOn, paidAmount,
-      balancePayment, comments, nextPayment, purposeOfPayment,
-      leadId, userid, username, status,
-    } = req.body;
+      supplierId,
+      supplierName,
+      totalPayable,
+      paidOn,
+      paidAmount,
+      balancePayment,
+      comments,
+      nextPayment,
+      purposeOfPayment,
+      leadId,  // Add leadId to destructured fields
+      userid,
+      username,
+      status,
 
+    } = req.body;
+  
     const insertSupplier = `
       INSERT INTO suppliers 
-      (supplierlist_id, supplier_name, total_payable, paid_on, paid_amount, balance_payment, comments, next_payment, purpose, leadid, userid, username, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (supplierlist_id,supplier_name, total_payable, paid_on, paid_amount, balance_payment, comments, next_payment,purpose, leadid,
+      userid, username, status)
+      VALUES (?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
-
-    await db.query(insertSupplier, [
-      supplierId, supplierName, totalPayable, paidOn, paidAmount,
-      balancePayment, comments, nextPayment, purposeOfPayment,
-      leadId, userid, username, status,
-    ]);
-
-    res.status(201).json({ message: 'Supplier added successfully', supplierId });
-  } catch (err) {
-    console.error('Database error:', err);
-    res.status(500).json({ error: 'Failed to add supplier' });
-  }
+  
+    db.query(
+      insertSupplier,
+      [
+        supplierId,
+        supplierName, 
+        totalPayable, 
+        paidOn, 
+        paidAmount, 
+        balancePayment, 
+        comments, 
+        nextPayment,
+        purposeOfPayment,
+        leadId,  // Add leadId to the values array
+        userid,
+        username,
+        status
+      ],
+      (err, result) => {
+        if (err) {
+          console.error('Database error:', err);
+          return res.status(500).json({ error: 'Failed to add supplier' });
+        }
+  
+        // Insert into history
+        const insertHistory = `
+          INSERT INTO payment_log 
+          (supplier_id, paid_amount, paid_on, next_payment,purpose, leadid, userid, username, status)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+        const supplierId = result.insertId;
+  
+        db.query(
+          insertHistory,
+          [supplierId, paidAmount, paidOn, nextPayment,purposeOfPayment, leadId, userid, username, status],  // Add leadId here
+          (historyErr) => {
+            if (historyErr) {
+              console.error('History log failed:', historyErr);
+            }
+          }
+        );
+  
+        res.status(201).json({ 
+          message: 'Supplier added successfully',
+          supplierId: supplierId
+        });
+      }
+    );
 });
-
 
 router.post('/suppliers/:id/payment', (req, res) => {
   const supplierId = req.params.id;

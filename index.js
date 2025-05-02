@@ -40,7 +40,10 @@ const supplierRoute = require('./routes/supplierRoute');
 const paymentsRoute = require('./routes/paymentsRoute');
 const reportRoute = require('./routes/ReportRoute');
 const supplierlistRoute = require('./routes/supplierlistRoute');
-// const emailRoutes = require('./routes/email');
+
+
+
+const newRoutes = require('./routes/newsupplierroute');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -90,7 +93,10 @@ app.use('/api', supplierRoute);
 app.use('/api', paymentsRoute);
 app.use('/', reportRoute);
 app.use('/api', supplierlistRoute);
-// app.use('/api', emailRoutes);
+
+
+
+app.use('/api', newRoutes);
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);

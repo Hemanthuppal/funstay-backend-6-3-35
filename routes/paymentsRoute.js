@@ -162,38 +162,39 @@ router.get("/payments/:id", (req, res) => {
   });
 });
 
-  router.put("/update-status/:id/status", (req, res) => {
-    const { id } = req.params;
-    const { status } = req.body;
-  
-    // First, check if the payment exists
-    const checkQuery = "SELECT * FROM receivables WHERE id = ?";
-    db.query(checkQuery, [id], (err, results) => {
-      if (err) {
-        console.error("Error checking payment record:", err);
-        return res.status(500).json({ error: "Database error while checking record" });
-      }
-  
-      if (results.length === 0) {
-        return res.status(404).json({ error: "Payment record not found" });
-      }
-  
-     // Update both status and status_updated_at
-    const updateQuery = `
-    UPDATE receivables 
-    SET status = ?, status_updated_at = NOW() 
-    WHERE id = ?
-  `;
-  db.query(updateQuery, [status, id], (err, result) => {
+router.put("/update-status/:id/status", (req, res) => {
+  const { id } = req.params;
+  const { status, approved_by } = req.body;
+
+  // First, check if the payment exists
+  const checkQuery = "SELECT * FROM receivables WHERE id = ?";
+  db.query(checkQuery, [id], (err, results) => {
     if (err) {
-      console.error("Error updating status:", err);
-      return res.status(500).json({ error: "Database error while updating status" });
+      console.error("Error checking payment record:", err);
+      return res.status(500).json({ error: "Database error while checking record" });
     }
 
-    res.status(200).json({ message: "Status and update time saved successfully" });
-  });
+    if (results.length === 0) {
+      return res.status(404).json({ error: "Payment record not found" });
+    }
+
+    // Update both status, approved_by and status_updated_at
+    const updateQuery = `
+      UPDATE receivables 
+      SET status = ?, status_updated_at = NOW(), approved_by = ?
+      WHERE id = ?
+    `;
+    db.query(updateQuery, [status, approved_by, id], (err, result) => {
+      if (err) {
+        console.error("Error updating status:", err);
+        return res.status(500).json({ error: "Database error while updating status" });
+      }
+
+      res.status(200).json({ message: "Status, approved_by, and update time saved successfully" });
     });
   });
+});
+
 
   // router.put("/payable-update-status/:id/status", (req, res) => {
   //   const { id } = req.params;

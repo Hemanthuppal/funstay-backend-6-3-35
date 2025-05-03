@@ -122,12 +122,12 @@ const updateEmployeeModel = (leadid, employeeName, employeeId, managerId, userId
         // Insert a notification for the manager.
         const notificationMessage = `(Manager) assigned you a ${status}`;
         const insertNotificationQuery = `
-          INSERT INTO notifications (employeeId, managerid, name, message, createdAt, \`read\`,status)
-          VALUES (?, ?, ?, ?, NOW(), 0, ?)
+          INSERT INTO notifications (employeeId,leadid, managerid, name, message, createdAt, \`read\`,status)
+          VALUES (?,?, ?, ?, ?, NOW(), 0, ?)
         `;
         db.query(
           insertNotificationQuery,
-          [employeeId, managerId, userName, notificationMessage,status],
+          [employeeId,leadid, managerId, userName, notificationMessage,status],
           (errNotif, notificationResult) => {
             if (errNotif) {
               return callback(errNotif);
@@ -171,12 +171,12 @@ const adminupdateEmployeeModel = (leadid, employeeName, employeeId, managerId, u
         // Insert a notification for the manager.
         const notificationMessage = `Admin assigned you a ${status}`;
         const insertNotificationQuery = `
-          INSERT INTO notifications (employeeId, managerid, name, message, createdAt, \`read\`,status)
-          VALUES (?, ?, ?, ?, NOW(), 0,?)
+          INSERT INTO notifications (employeeId,leadid, managerid, name, message, createdAt, \`read\`,status)
+          VALUES (?, ?, ?, ?, ?, NOW(), 0,?)
         `;
         db.query(
           insertNotificationQuery,
-          [employeeId, managerId, userName, notificationMessage,status],
+          [employeeId,leadid, managerId, userName, notificationMessage,status],
           (errNotif, notificationResult) => {
             if (errNotif) {
               return callback(errNotif);

@@ -101,10 +101,10 @@ const updateAssigneeModel = (
         // const notificationMessage = 'Admin assigned you a Lead';
         const notificationMessage = `Admin assigned you a ${status}`;
         const insertNotificationQuery = `
-          INSERT INTO notifications (managerid, message, createdAt, \`read\`,status)
-          VALUES (?, ?, NOW(), 0,?)
+          INSERT INTO notifications (managerid,leadid, message, createdAt, \`read\`,status)
+          VALUES (?, ? ,?, NOW(), 0,?)
         `;
-        db.query(insertNotificationQuery, [managerid, notificationMessage, status], (errNotif, insertResult) => {
+        db.query(insertNotificationQuery, [managerid,leadid, notificationMessage, status], (errNotif, insertResult) => {
           if (errNotif) {
             return callback(errNotif);
           }

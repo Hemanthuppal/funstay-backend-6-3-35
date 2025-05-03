@@ -16,6 +16,7 @@ exports.fetchCommentsByLeadId = (req, res) => {
 
 exports.addComment = (req, res) => {
   const { name, leadid, timestamp, text, userId, managerId, email, notificationmessage } = req.body;
+  console.log("Received request body:", req.body);
 
   if (!leadid || !timestamp || !text) {
     return res.status(400).json({ message: 'All fields are required.' });

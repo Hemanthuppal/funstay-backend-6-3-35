@@ -135,14 +135,14 @@ router.get('/edit-payment-log/:id', (req, res) => {
         // Insert into history
         const insertHistory = `
           INSERT INTO payment_log 
-          (supplier_id, paid_amount, paid_on, leadid, userid, username, status)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
+          (supplier_id, paid_amount, paid_on, leadid, userid, username, status,comments)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `;
         const supplierId = result.insertId;
   
         db.query(
           insertHistory,
-          [supplierId, paidAmount, paidOn, leadId, userid, username, status],  // Add leadId here
+          [supplierId, paidAmount, paidOn, leadId, userid, username, status,comments],  // Add leadId here
           (historyErr) => {
             if (historyErr) {
               console.error('History log failed:', historyErr);
@@ -162,7 +162,8 @@ router.post('/suppliers/:id/payment', (req, res) => {
   const supplierId = req.params.id;
   const { paidAmount, leadid, comments, userid, username, status } = req.body;
   console.log("leadid=",leadid);
-  const now = new Date(); // Ensure `now` is defined
+  const now = new Date();
+const formattedNow = now.toISOString().slice(0, 19).replace('T', ' '); // Ensure `now` is defined
 
   const insertHistory = `
     INSERT INTO payment_log 
@@ -172,7 +173,7 @@ router.post('/suppliers/:id/payment', (req, res) => {
 
   db.query(
     insertHistory, 
-    [supplierId, paidAmount, now, comments, leadid, userid, username, status],
+    [supplierId, paidAmount, formattedNow, comments, leadid, userid, username, status],
     (logErr) => {
       if (logErr) {
         console.error('Error logging payment:', logErr);
@@ -381,6 +382,37 @@ router.get('/payment-logs-with-details', async (req, res) => {
   }
 });
 
+router.put('/payment-logs/:id/supplierstatus', (req, res) => {
+  const { id } = req.params;
+  const { status, approved_by } = req.body;
+  const status_updated_at = new Date();
+
+  const updateSql = `
+    UPDATE payment_log 
+    SET status = ?, approved_by = ?, status_updated_at = ?
+    WHERE id = ?
+  `;
+
+  db.query(updateSql, [status, approved_by, status_updated_at, id], (err, result) => {
+    if (err) {
+      console.error('Error updating payment log status:', err);
+      return res.status(500).json({ error: 'Database error during update' });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Payment log not found' });
+    }
+
+    const selectSql = `SELECT * FROM payment_log WHERE id = ?`;
+    db.query(selectSql, [id], (err, rows) => {
+      if (err) {
+        console.error('Error fetching updated payment log:', err);
+        return res.status(500).json({ error: 'Database error during fetch' });
+      }
+      res.json(rows[0]);
+    });
+  });
+});
 
 
 

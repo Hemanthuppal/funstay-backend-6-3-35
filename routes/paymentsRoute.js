@@ -3,7 +3,7 @@ const router = express.Router();
 const db = require('../config/db');
 
 router.post("/payments", (req, res) => {
-    const { leadid, total_amount, paid_amount, balance_amount, paid_on, remarks, userid, username, status } = req.body;
+    const { leadid, paid_amount, paid_on, remarks, userid, username, status } = req.body;
   
     // First, get customerid from addleads table
     const getLeadQuery = "SELECT customerid FROM addleads WHERE leadid = ?";
@@ -22,12 +22,12 @@ router.post("/payments", (req, res) => {
       // Now insert payment
       const insertQuery = `
         INSERT INTO receivables 
-        (leadid, customerid, total_amount, paid_amount, balance_amount, paid_on, remarks, userid, username, status) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (leadid, customerid, paid_amount, paid_on, remarks, userid, username, status) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `;
       db.query(
         insertQuery,
-        [leadid, customerid, total_amount, paid_amount, balance_amount, paid_on, remarks, userid, username, status],
+        [leadid, customerid, paid_amount, paid_on, remarks, userid, username, status],
         (err, result) => {
           if (err) {
             console.error("Error inserting payment:", err);
@@ -41,7 +41,7 @@ router.post("/payments", (req, res) => {
 
   router.put("/payments/:leadid/:paymentid", (req, res) => {
     const { leadid, paymentid } = req.params;
-    const { paid_amount, balance_amount, paid_on, remarks, userid, username, status } = req.body;
+    const { paid_amount, paid_on, remarks, userid, username, status } = req.body;
   
     // First, verify the lead exists and fetch the customerid
     const getLeadQuery = "SELECT customerid FROM addleads WHERE leadid = ?";
@@ -64,7 +64,6 @@ router.post("/payments", (req, res) => {
           leadid = ?,
           customerid = ?,
           paid_amount = ?,
-          balance_amount = ?,
           paid_on = ?,
           remarks = ?,
           userid = ?,
@@ -75,7 +74,7 @@ router.post("/payments", (req, res) => {
   
       db.query(
         updateQuery,
-        [leadid, customerid, paid_amount, balance_amount, paid_on, remarks, userid, username, status, paymentid],
+        [leadid, customerid, paid_amount, paid_on, remarks, userid, username, status, paymentid],
         (err, result) => {
           if (err) {
             console.error("Error updating payment:", err);
@@ -121,6 +120,24 @@ router.get("/payments", (req, res) => {
       res.status(200).json(results);
     });
   });
+
+  router.get('/receivables', (req, res) => {
+    const query = `
+      SELECT r.*, a.name 
+      FROM receivables r
+      JOIN addleads a ON r.leadid = a.leadid
+    `;
+  
+    db.query(query, (err, results) => {
+      if (err) {
+        console.error('Error fetching receivables with customer names:', err);
+        res.status(500).json({ error: 'Database query failed' });
+      } else {
+        res.json(results);
+      }
+    });
+  });
+  
 
   // Get a single payment by ID
 router.get("/payments/:id", (req, res) => {

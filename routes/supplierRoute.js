@@ -20,6 +20,24 @@ router.get('/suppliers', (req, res) => {
       res.json(results);
   });
 });
+
+router.get('/approval/suppliers', (req, res) => {
+  const query = `
+    SELECT s.*, a.name
+    FROM suppliers s
+    JOIN addleads a ON s.leadid = a.leadid
+  `;
+
+  db.query(query, (err, results) => {
+    if (err) {
+      console.error('Error fetching suppliers with customer names:', err);
+      res.status(500).json({ error: 'Database query failed' });
+    } else {
+      res.json(results);
+    }
+  });
+});
+
   
 router.get('/suppliers/:id/history', (req, res) => {
   const { id } = req.params;
@@ -35,97 +53,335 @@ router.get('/suppliers/:id/history', (req, res) => {
   );
 });
 
- 
-router.post('/suppliers', async (req, res) => {
-  try {
-    const {
-      supplierId, supplierName, totalPayable, paidOn, paidAmount,
-      balancePayment, comments, nextPayment, purposeOfPayment,
-      leadId, userid, username, status,
-    } = req.body;
+router.get('/edit-payment-log/:id', (req, res) => {
+  const paymentId = req.params.id;
 
+  const sql = `
+    SELECT 
+      p.*, 
+      s.total_payable 
+    FROM 
+      payment_log p 
+    JOIN 
+      suppliers s 
+    ON 
+      p.supplier_id = s.id 
+    WHERE 
+      p.id = ?
+  `;
+
+  db.query(sql, [paymentId], (err, results) => {
+    if (err) {
+      console.error('Error fetching payment log by ID with supplier details:', err);
+      return res.status(500).json({ message: 'Database error', error: err });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ message: 'Payment log not found' });
+    }
+
+    res.status(200).json({ data: results[0] });
+  });
+});
+ 
+  router.post('/suppliers', (req, res) => {
+    const {
+      supplierId,
+      supplierName,
+      totalPayable,
+      paidOn,
+      paidAmount,
+      // balancePayment,
+      comments,
+      // nextPayment,
+      // purposeOfPayment,
+      leadId,  // Add leadId to destructured fields
+      userid,
+      username,
+      status,
+
+    } = req.body;
+  
     const insertSupplier = `
       INSERT INTO suppliers 
-      (supplierlist_id, supplier_name, total_payable, paid_on, paid_amount, balance_payment, comments, next_payment, purpose, leadid, userid, username, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (supplierlist_id,supplier_name, total_payable, paid_on, comments, leadid,
+      userid, username, status)
+      VALUES (?,?, ?, ?, ?, ?, ?, ?, ?)
     `;
+  
+    db.query(
+      insertSupplier,
+      [
+        supplierId,
+        supplierName, 
+        totalPayable, 
+        paidOn, 
+        // paidAmount, 
+        // balancePayment, 
+        comments, 
+        // nextPayment,
+        // purposeOfPayment,
+        leadId,  // Add leadId to the values array
+        userid,
+        username,
+        status
+      ],
+      (err, result) => {
+        if (err) {
+          console.error('Database error:', err);
+          return res.status(500).json({ error: 'Failed to add supplier' });
+        }
+  
+        // Insert into history
+        const insertHistory = `
+          INSERT INTO payment_log 
+          (supplier_id, paid_amount, paid_on, leadid, userid, username, status)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+        `;
+        const supplierId = result.insertId;
+  
+        db.query(
+          insertHistory,
+          [supplierId, paidAmount, paidOn, leadId, userid, username, status],  // Add leadId here
+          (historyErr) => {
+            if (historyErr) {
+              console.error('History log failed:', historyErr);
+            }
+          }
+        );
+  
+        res.status(201).json({ 
+          message: 'Supplier added successfully',
+          supplierId: supplierId
+        });
+      }
+    );
+});
 
-    await db.query(insertSupplier, [
-      supplierId, supplierName, totalPayable, paidOn, paidAmount,
-      balancePayment, comments, nextPayment, purposeOfPayment,
-      leadId, userid, username, status,
-    ]);
+router.post('/suppliers/:id/payment', (req, res) => {
+  const supplierId = req.params.id;
+  const { paidAmount, leadid, comments, userid, username, status } = req.body;
+  console.log("leadid=",leadid);
+  const now = new Date(); // Ensure `now` is defined
 
-    res.status(201).json({ message: 'Supplier added successfully', supplierId });
-  } catch (err) {
-    console.error('Database error:', err);
-    res.status(500).json({ error: 'Failed to add supplier' });
+  const insertHistory = `
+    INSERT INTO payment_log 
+    (supplier_id, paid_amount, paid_on, comments, leadid, userid, username, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `;
+
+  db.query(
+    insertHistory, 
+    [supplierId, paidAmount, now, comments, leadid, userid, username, status],
+    (logErr) => {
+      if (logErr) {
+        console.error('Error logging payment:', logErr);
+        return res.status(500).json({ error: 'Failed to log payment' });
+      }
+
+      res.json({
+        message: 'Payment logged successfully',
+      });
+    }
+  );
+});
+
+
+router.get('/payment-log', (req, res) => {
+  const { leadid, supplier_id } = req.query;
+
+  if (!leadid || !supplier_id) {
+    return res.status(400).json({ message: 'Missing leadid or supplier_id' });
+  }
+
+  const sql = `SELECT SUM(paid_amount) AS total_paid FROM payment_log WHERE leadid = ? AND supplier_id = ?`;
+
+  db.query(sql, [leadid, supplier_id], (err, results) => {
+    if (err) return res.status(500).json({ error: err });
+    res.status(200).json({ total_paid: results[0].total_paid || 0 });
+  });
+});
+
+router.get('/payment-log-history', (req, res) => {
+  const { supplier_id } = req.query;
+
+  if (!supplier_id) {
+    return res.status(400).json({ message: 'Missing leadid or supplier_id in query parameters.' });
+  }
+
+  const sql = `SELECT * FROM payment_log WHERE supplier_id = ?`;
+
+  db.query(sql, [ supplier_id], (err, results) => {
+    if (err) {
+      console.error('Error fetching payment log:', err);
+      return res.status(500).json({ message: 'Database error', error: err });
+    }
+
+    res.status(200).json({ data: results });
+  });
+});
+
+router.put('/update-suppliers-payment/:id', (req, res) => {
+  const paymentId = req.params.id;
+  const {
+    paidAmount,
+    paidOn,
+    comments,
+    userid,
+    username
+  } = req.body;
+
+  const sql = `
+    UPDATE payment_log 
+    SET 
+      paid_amount = ?, 
+      paid_on = ?, 
+      comments = ?, 
+      userid = ?, 
+      username = ?, 
+      status = 'Pending'
+    WHERE id = ?
+  `;
+
+  const values = [paidAmount, paidOn, comments, userid, username, paymentId];
+
+  db.query(sql, values, (err, result) => {
+    if (err) {
+      console.error('Error updating payment log:', err);
+      return res.status(500).json({ message: 'Failed to update payment log', error: err });
+    }
+
+    res.status(200).json({ message: 'Payment log updated successfully' });
+  });
+});
+
+router.delete("/supplier-payments/:id", (req, res) => {
+  const paymentId = req.params.id;
+  const query = "DELETE FROM payment_log WHERE id = ?";
+
+  db.query(query, [paymentId], (err, result) => {
+    if (err) {
+      return res.status(500).json({
+        message: "Error deleting payment",
+        error: err,
+      });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        message: "Payment not found",
+      });
+    }
+
+    res.status(200).json({
+      message: "Payment deleted successfully",
+    });
+  });
+});
+
+// Update total_payable for a supplier
+router.put('/Total-amount/:supplierId', (req, res) => {
+  const { supplierId } = req.params;
+  const { total_payable } = req.body;
+
+  if (!supplierId || isNaN(supplierId)) {
+    return res.status(400).json({ success: false, message: 'Invalid supplier ID' });
+  }
+
+  if (total_payable === undefined || isNaN(total_payable)) {
+    return res.status(400).json({ success: false, message: 'Invalid total payable amount' });
+  }
+
+  const query = 'UPDATE suppliers SET total_payable = ? WHERE id = ?';
+
+  db.query(query, [total_payable, supplierId], (err, result) => {
+    if (err) {
+      console.error('Error updating supplier:', err);
+      return res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: 'Supplier not found' });
+    }
+
+    res.json({ success: true, message: 'Total payable updated successfully' });
+  });
+});
+
+router.get('/payment-summary', (req, res) => {
+  const { leadid, supplier_id } = req.query;
+
+  let sql = '';
+  let params = [];
+
+  if (leadid && supplier_id) {
+    sql = `
+      SELECT leadid, supplier_id, SUM(paid_amount) AS total_paid
+      FROM payment_log
+      WHERE leadid = ? AND supplier_id = ?
+      GROUP BY leadid, supplier_id
+    `;
+    params = [leadid, supplier_id];
+  } else {
+    sql = `
+      SELECT leadid, supplier_id, SUM(paid_amount) AS total_paid
+      FROM payment_log
+      GROUP BY leadid, supplier_id
+    `;
+  }
+
+  db.query(sql, params, (err, results) => {
+    if (err) {
+      console.error('Query error:', err);
+      return res.status(500).json({ error: 'Database query failed' });
+    }
+
+    res.json(results);
+  });
+});
+
+// Start 
+
+router.get('/payment-log-content', (req, res) => {
+  const sql = 'SELECT * FROM payment_log';
+
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error('Error fetching payment_log:', err);
+      return res.status(500).json({ error: 'Database error' });
+    }
+    res.json(results);
+  });
+});
+
+router.get('/payment-logs-with-details', async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        pl.*,
+        s.supplier_name,
+        al.name AS customer_name
+      FROM 
+        payment_log pl
+      LEFT JOIN 
+        suppliers s ON pl.leadid = s.leadid AND pl.supplier_id = s.id
+      LEFT JOIN 
+        addleads al ON pl.leadid = al.leadid
+      WHERE 
+        pl.status = 'Pending'
+    `;
+    
+    // Using promise() wrapper
+    const [results] = await db.promise().query(query);
+    res.json(results);
+    
+  } catch (error) {
+    console.error('Error fetching payment logs with details:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
 
-router.post('/suppliers/:id/payment', (req, res) => {
-  const supplierId = req.params.id;
-  const { paidAmount, nextPayment, leadId, comments, userid, username, status } = req.body; // Added comments
-
-  const getSupplier = 'SELECT paid_amount, balance_payment, leadid FROM suppliers WHERE id = ?';
-
-  db.query(getSupplier, [supplierId], (err, results) => {
-    if (err || results.length === 0) {
-      return res.status(500).json({ error: 'Supplier not found' });
-    }
-
-    const supplier = results[0];
-    const oldPaid = parseFloat(supplier.paid_amount || 0);
-    const oldBalance = parseFloat(supplier.balance_payment || 0);
-    const newPaid = oldPaid + parseFloat(paidAmount);
-    const newBalance = Math.max(oldBalance - parseFloat(paidAmount), 0);
-    const now = new Date();
-    const effectiveLeadId = leadId || supplier.leadid;
-
-    const updateQuery = `
-      UPDATE suppliers 
-      SET paid_amount = ?, balance_payment = ?, next_payment = ?, paid_on = ?, comments = ?, leadid = ?
-      WHERE id = ?
-    `;
-
-    db.query(
-      updateQuery,
-      [newPaid, newBalance, nextPayment, now, comments, effectiveLeadId, supplierId],
-      (updateErr) => {
-        if (updateErr) {
-          return res.status(500).json({ error: 'Failed to update payment' });
-        }
-
-        const insertHistory = `
-          INSERT INTO payment_log 
-          (supplier_id, paid_amount, paid_on, next_payment, comments, leadid, userid, username, status)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `;
-
-        db.query(
-          insertHistory, 
-          [supplierId, paidAmount, now, nextPayment, comments, effectiveLeadId, userid, username, status],
-          (logErr) => {
-            if (logErr) {
-              console.error('Error logging payment:', logErr);
-            }
-
-            res.json({
-              message: 'Payment updated successfully',
-              updated: {
-                paidAmount: newPaid,
-                balancePayment: newBalance,
-                leadId: effectiveLeadId,
-                comments: comments || null
-              }
-            });
-          }
-        );
-      }
-    );
-  });
-});
 
 
 

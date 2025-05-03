@@ -228,7 +228,8 @@ router.put('/update-suppliers-payment/:id', (req, res) => {
     paidOn,
     comments,
     userid,
-    username
+    username,
+    status
   } = req.body;
 
   const sql = `
@@ -239,11 +240,11 @@ router.put('/update-suppliers-payment/:id', (req, res) => {
       comments = ?, 
       userid = ?, 
       username = ?, 
-      status = 'Pending'
+      status = ?
     WHERE id = ?
   `;
 
-  const values = [paidAmount, paidOn, comments, userid, username, paymentId];
+  const values = [paidAmount, paidOn, comments, userid, username, status, paymentId];
 
   db.query(sql, values, (err, result) => {
     if (err) {

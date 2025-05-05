@@ -138,11 +138,11 @@ router.get('/edit-payment-log/:id', (req, res) => {
           (supplier_id, paid_amount, paid_on, leadid, userid, username, status,comments)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `;
-        const supplierId = result.insertId;
+        const newsupplierId = result.insertId;
   
         db.query(
           insertHistory,
-          [supplierId, paidAmount, paidOn, leadId, userid, username, status,comments],  // Add leadId here
+          [newsupplierId, paidAmount, paidOn, leadId, userid, username, status,comments],  // Add leadId here
           (historyErr) => {
             if (historyErr) {
               console.error('History log failed:', historyErr);
@@ -160,7 +160,7 @@ router.get('/edit-payment-log/:id', (req, res) => {
 
 router.post('/suppliers/:id/payment', (req, res) => {
   const supplierId = req.params.id;
-  const { paidAmount, leadid, comments, userid, username, status } = req.body;
+  const { paidAmount, leadid, comments, userid, username, status,paidOn } = req.body;
   console.log("leadid=",leadid);
   const now = new Date();
 const formattedNow = now.toISOString().slice(0, 19).replace('T', ' '); // Ensure `now` is defined
@@ -173,7 +173,7 @@ const formattedNow = now.toISOString().slice(0, 19).replace('T', ' '); // Ensure
 
   db.query(
     insertHistory, 
-    [supplierId, paidAmount, formattedNow, comments, leadid, userid, username, status],
+    [supplierId, paidAmount, paidOn, comments, leadid, userid, username, status],
     (logErr) => {
       if (logErr) {
         console.error('Error logging payment:', logErr);

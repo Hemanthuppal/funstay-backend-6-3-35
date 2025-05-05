@@ -139,6 +139,49 @@ router.delete("/deletesupplier/:id", (req, res) => {
       res.json({ data: results });
     });
   });
+
+
+  router.put('/edit-supplierslist/:id', (req, res) => {
+    const id = req.params.id;
+    const {
+      supplierName,
+      companyName,
+      contactPerson,
+      phone,
+      email,
+      address,
+    } = req.body;
+  
+    const sql = `
+      UPDATE supplierlist 
+      SET 
+        supplierName = ?, 
+        companyName = ?, 
+        contactPerson = ?, 
+        phone = ?, 
+        email = ?, 
+        address = ?
+      WHERE id = ?
+    `;
+  
+    db.query(
+      sql,
+      [supplierName, companyName, contactPerson, phone, email, address, id],
+      (err, result) => {
+        if (err) {
+          console.error('Error updating supplier:', err);
+          return res.status(500).json({ success: false, message: 'Database error' });
+        }
+  
+        if (result.affectedRows === 0) {
+          return res.status(404).json({ success: false, message: 'Supplier not found' });
+        }
+  
+        res.json({ success: true, message: 'Supplier updated successfully' });
+      }
+    );
+  });
+  
   
 
 module.exports = router;

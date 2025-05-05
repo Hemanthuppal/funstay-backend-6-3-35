@@ -537,6 +537,61 @@ router.post("/send-bulk-emails", upload.single("file"), async (req, res) => {
 
 
 
+  router.get('/get-credentials', (req, res) => {
+    const query = 'SELECT * FROM email_credentials';
+    db.query(query, (err, results) => {
+      if (err) {
+        console.error('Error fetching credentials:', err);
+        return res.status(500).json({ message: 'Failed to fetch credentials' });
+      }
+      res.status(200).json(results);
+    });
+  });
+  
+  // ✅ READ ONE - Get a specific credential by ID
+  router.get('/getcredentials/:id', (req, res) => {
+    const { id } = req.params;
+    const query = 'SELECT * FROM email_credentials WHERE id = ?';
+    db.query(query, [id], (err, results) => {
+      if (err) {
+        console.error('Error fetching credential:', err);
+        return res.status(500).json({ message: 'Failed to fetch credential' });
+      }
+      if (results.length === 0) {
+        return res.status(404).json({ message: 'Credential not found' });
+      }
+      res.status(200).json(results[0]);
+    });
+  });
+  
+  // ✅ UPDATE - Edit credential
+  router.put('/getcredentials/:id', (req, res) => {
+    const { id } = req.params;
+    const { sender_email, app_password } = req.body;
+  
+    const query = 'UPDATE email_credentials SET sender_email = ?, app_password = ? WHERE id = ?';
+    db.query(query, [sender_email, app_password, id], (err, result) => {
+      if (err) {
+        console.error('Error updating credential:', err);
+        return res.status(500).json({ message: 'Failed to update credential' });
+      }
+      res.status(200).json({ message: 'Credential updated successfully!' });
+    });
+  });
+  
+  // ✅ DELETE - Remove credential
+  router.delete('/delete-credentials/:id', (req, res) => {
+    const { id } = req.params;
+  
+    const query = 'DELETE FROM email_credentials WHERE id = ?';
+    db.query(query, [id], (err, result) => {
+      if (err) {
+        console.error('Error deleting credential:', err);
+        return res.status(500).json({ message: 'Failed to delete credential' });
+      }
+      res.status(200).json({ message: 'Credential deleted successfully!' });
+    });
+  });
 
 
 

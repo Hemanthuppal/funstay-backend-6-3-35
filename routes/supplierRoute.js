@@ -415,6 +415,27 @@ router.put('/payment-logs/:id/supplierstatus', (req, res) => {
   });
 });
 
+router.get('/paid-suppliers', (req, res) => {
+  const { leadid } = req.query;
+
+  if (!leadid) {
+    return res.status(400).json({ error: 'leadid is required' });
+  }
+
+  const selectSql = `SELECT DISTINCT supplierlist_id, supplier_name 
+FROM suppliers 
+WHERE leadid = ?
+`;
+
+  db.query(selectSql, [leadid], (err, results) => {
+    if (err) {
+      console.error('Error fetching paid suppliers:', err);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+
+    res.json({ data: results }); // results = [{ supplier_id: 1 }, ...]
+  });
+});
 
 
 

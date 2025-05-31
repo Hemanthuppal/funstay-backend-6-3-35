@@ -10,7 +10,7 @@ router.get('/suppliers', (req, res) => {
       return res.status(400).json({ error: 'leadid parameter is required' });
   }
 
-  const query = 'SELECT * FROM suppliers WHERE leadid = ?  ORDER BY paid_on DESC';
+  const query = 'SELECT * FROM suppliers WHERE leadid = ?  ORDER BY createdAt DESC';
   
   db.query(query, [leadid], (err, results) => {
       if (err) {
@@ -42,7 +42,7 @@ router.get('/approval/suppliers', (req, res) => {
 router.get('/suppliers/:id/history', (req, res) => {
   const { id } = req.params;
   db.query(
-    'SELECT id, supplier_id, paid_amount, paid_on, next_payment, status FROM payment_log WHERE supplier_id = ? ORDER BY paid_on DESC',
+    'SELECT id, supplier_id, paid_amount, paid_on, next_payment, status FROM payment_log WHERE supplier_id = ? ORDER BY createdAt DESC',
     [id],
     (err, results) => {
       if (err) {
@@ -211,7 +211,7 @@ router.get('/payment-log-history', (req, res) => {
     return res.status(400).json({ message: 'Missing leadid or supplier_id in query parameters.' });
   }
 
-  const sql = `SELECT * FROM payment_log WHERE supplier_id = ?`;
+  const sql = `SELECT * FROM payment_log WHERE supplier_id = ? ORDER BY createdAt DESC`;
 
   db.query(sql, [ supplier_id], (err, results) => {
     if (err) {
@@ -346,7 +346,7 @@ router.get('/payment-summary', (req, res) => {
 // Start 
 
 router.get('/payment-log-content', (req, res) => {
-  const sql = 'SELECT * FROM payment_log';
+  const sql = 'SELECT * FROM payment_log ORDER BY createdAt DESC';
 
   db.query(sql, (err, results) => {
     if (err) {
@@ -372,6 +372,8 @@ router.get('/payment-logs-with-details', async (req, res) => {
         addleads al ON pl.leadid = al.leadid
       WHERE 
         pl.status = 'Pending'
+        ORDER BY 
+        pl.createdAt DESC
     `;
     
     // Using promise() wrapper
@@ -425,8 +427,7 @@ router.get('/paid-suppliers', (req, res) => {
 
   const selectSql = `SELECT DISTINCT supplierlist_id, supplier_name 
 FROM suppliers 
-WHERE leadid = ?
-`;
+WHERE leadid = ? ORDER BY createdAt DESC`;
 
   db.query(selectSql, [leadid], (err, results) => {
     if (err) {

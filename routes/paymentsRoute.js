@@ -112,7 +112,7 @@ router.get("/payments", (req, res) => {
       query += " WHERE leadid = ?";
       params.push(leadid);
     }
-  
+   query += " ORDER BY created_at DESC"; //chnage to created_At
     db.query(query, params, (err, results) => {
       if (err) {
         return res.status(500).json({ message: "Error fetching receivables", error: err });
@@ -125,8 +125,8 @@ router.get("/payments", (req, res) => {
     const query = `
       SELECT r.*, a.name 
       FROM receivables r
-      JOIN addleads a ON r.leadid = a.leadid
-    `;
+      JOIN addleads a ON r.leadid = a.leadid ORDER BY created_at DESC 
+    `; //chnage to created_At
   
     db.query(query, (err, results) => {
       if (err) {

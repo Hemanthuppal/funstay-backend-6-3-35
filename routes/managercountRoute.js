@@ -329,7 +329,7 @@ router.get('/leads/confirmed/monthly/:managerid', (req, res) => {
   });
 });
 
-router.get('/opps/confirmed/today/manager', (req, res) => {
+router.get('/opps/confirmed/today/:managerid', (req, res) => {
   const { managerid } = req.params;
   const today = new Date().toISOString().split('T')[0];
 

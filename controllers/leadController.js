@@ -10,6 +10,7 @@ exports.createLead = (req, res) => {
     email,
     phone_number,
     country_code,
+    another_country_code,
     primarySource,
     secondarysource,
     origincity,
@@ -51,13 +52,13 @@ exports.createLead = (req, res) => {
       // Insert new customer
       const insertCustomerQuery = `
         INSERT INTO customers (
-          name, email, phone_number, country_code,
+          name, email, phone_number, country_code, another_country_code,
           another_name, another_email, another_phone_number, customer_status
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
       const customerData = [
-        name, email, phone_number, country_code,
+        name, email, phone_number, country_code, another_country_code,
         another_name, another_email, another_phone_number, "new"
       ];
       db.query(insertCustomerQuery, customerData, (err, result) => {
@@ -73,15 +74,15 @@ exports.createLead = (req, res) => {
     function insertLead() {
       const insertLeadQuery = `
         INSERT INTO addleads (
-          lead_type, name, email, phone_number, country_code,
+          lead_type, name, email, phone_number, country_code, another_country_code,
           primarySource, secondarysource, origincity, destination,
           another_name, another_email, another_phone_number,
           corporate_id, description, assignedSalesId, assignedSalesName,
           assign_to_manager, managerid, customerid, customer_status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
       const leadData = [
-        lead_type, name, email, phone_number, country_code,
+        lead_type, name, email, phone_number, country_code, another_country_code,
         primarySource, secondarysource, origincity,  destinationString,
         another_name, another_email, another_phone_number,
         corporate_id ? Number(corporate_id) : null,
@@ -159,6 +160,7 @@ exports.managercreateLead = (req, res) => {
     email,
     phone_number,
     country_code,
+    another_country_code,
     primarySource,
     secondarysource,
     origincity,
@@ -201,13 +203,13 @@ exports.managercreateLead = (req, res) => {
       // Insert new customer
       const insertCustomerQuery = `
         INSERT INTO customers (
-          name, email, phone_number, country_code,
+          name, email, phone_number, country_code, another_country_code,
           another_name, another_email, another_phone_number, customer_status
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
       const customerData = [
-        name, email, phone_number, country_code,
+        name, email, phone_number, country_code, another_country_code,
         another_name, another_email, another_phone_number, "new"
       ];
       db.query(insertCustomerQuery, customerData, (err, result) => {
@@ -223,15 +225,15 @@ exports.managercreateLead = (req, res) => {
     function insertLead() {
       const insertLeadQuery = `
         INSERT INTO addleads (
-          lead_type, name, email, phone_number, country_code,
+          lead_type, name, email, phone_number, country_code, another_country_code,
           primarySource, secondarysource, origincity, destination,
           another_name, another_email, another_phone_number,
           corporate_id, description, assignedSalesId, assignedSalesName,
           assign_to_manager, managerid, customerid, customer_status,managerAssign
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?)
       `;
       const leadData = [
-        lead_type, name, email, phone_number, country_code,
+        lead_type, name, email, phone_number, country_code, another_country_code,
         primarySource, secondarysource, origincity,  destinationString,
         another_name, another_email, another_phone_number,
         corporate_id ? Number(corporate_id) : null,
@@ -312,6 +314,7 @@ exports.admincreateLead = (req, res) => {
     email,
     phone_number,
     country_code,
+    another_country_code,
     primarySource,
     secondarysource,
     origincity,
@@ -354,13 +357,13 @@ exports.admincreateLead = (req, res) => {
       // Insert new customer
       const insertCustomerQuery = `
         INSERT INTO customers (
-          name, email, phone_number, country_code,
+          name, email, phone_number, country_code,another_country_code,
           another_name, another_email, another_phone_number, customer_status
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
       const customerData = [
-        name, email, phone_number, country_code,
+        name, email, phone_number, country_code,another_country_code,
         another_name, another_email, another_phone_number, "new"
       ];
       db.query(insertCustomerQuery, customerData, (err, result) => {
@@ -376,15 +379,15 @@ exports.admincreateLead = (req, res) => {
     function insertLead() {
       const insertLeadQuery = `
         INSERT INTO addleads (
-          lead_type, name, email, phone_number, country_code,
+          lead_type, name, email, phone_number, country_code,another_country_code,
           primarySource, secondarysource, origincity, destination,
           another_name, another_email, another_phone_number,
           corporate_id, description, assignedSalesId, assignedSalesName,
           assign_to_manager, managerid, customerid, customer_status,adminAssign  
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?)
       `;
       const leadData = [
-        lead_type, name, email, phone_number, country_code,
+        lead_type, name, email, phone_number, country_code,another_country_code,
         primarySource, secondarysource, origincity,  destinationString,
         another_name, another_email, another_phone_number,
         corporate_id ? Number(corporate_id) : null,

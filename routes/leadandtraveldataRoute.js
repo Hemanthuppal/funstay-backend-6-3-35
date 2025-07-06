@@ -45,10 +45,10 @@ router.get("/most-fetch-data", (req, res) => {
         t.email_sent,
         -- Fetching the most recent updated_at for each leadid from different tables
         GREATEST(
-            IFNULL(a.updated_at, '1970-01-01'),
-            IFNULL(t.updated_at, '1970-01-01'),
-            IFNULL(p.updatedAt, '1970-01-01'),
-            IFNULL(r.updated_at, '1970-01-01')
+            IFNULL(MAX(a.updated_at), '1970-01-01'),
+            IFNULL(MAX(t.updated_at), '1970-01-01'),
+            IFNULL(MAX(p.updatedAt), '1970-01-01'),
+            IFNULL(MAX(r.updated_at), '1970-01-01')
         ) AS most_recent_updated_at
     FROM addleads a 
     LEFT JOIN travel_opportunity t 
@@ -58,6 +58,8 @@ router.get("/most-fetch-data", (req, res) => {
     LEFT JOIN receivables r 
         ON a.leadid = r.leadid
     WHERE a.archive IS NULL
+    AND a.status = 'opportunity'
+    GROUP BY a.leadid
     ORDER BY t.leadid DESC`;
 
     db.query(query, (err, results) => {
@@ -72,6 +74,7 @@ router.get("/most-fetch-data", (req, res) => {
         res.json(results);
     });
 });
+
 
 
 
@@ -171,7 +174,7 @@ router.put("/update-lead-customer/:leadid", (req, res) => {
     const leadid = req.params.leadid;
 
     const {
-        lead_type, name, country_code, phone_number, email, sources, description, 
+        lead_type, name, country_code, another_country_code, phone_number, email, sources, description, 
         another_name, another_email, another_phone_number, origincity, destination, 
         corporate_id, primaryStatus, secondaryStatus, primarySource, secondarysource
     } = req.body;
@@ -179,14 +182,14 @@ router.put("/update-lead-customer/:leadid", (req, res) => {
     // Step 1: Update the addleads table
     const updateLeadQuery = `
       UPDATE addleads 
-      SET lead_type = ?, name = ?, country_code = ?, phone_number = ?, email = ?, sources = ?, 
+      SET lead_type = ?, name = ?, country_code = ?, another_country_code = ?, phone_number = ?, email = ?, sources = ?, 
           description = ?, another_name = ?, another_email = ?, another_phone_number = ?, 
           origincity = ?, destination = ?, corporate_id = ?, primaryStatus = ?, 
           secondaryStatus = ?, primarySource = ?, secondarysource = ?
       WHERE leadid = ?`;
 
     db.query(updateLeadQuery, [
-        lead_type, name, country_code, phone_number, email, sources, description, 
+        lead_type, name, country_code, another_country_code, phone_number, email, sources, description, 
         another_name, another_email, another_phone_number, origincity, destination, corporate_id, 
         primaryStatus, secondaryStatus, primarySource, secondarysource, leadid
     ], (err, result) => {

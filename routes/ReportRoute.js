@@ -68,94 +68,208 @@ router.delete('/api/reports/:id', async (req, res) => {
   }
 });
 
+// router.get("/api/fetch-lead-suppliers", (req, res) => {
+//   // First query to get lead and travel opportunity data
+//   const leadQuery = `
+//       SELECT a.*, t.destination AS travel_destination, t.quotation_id, 
+//              t.created_at AS travel_created_at, t.origincity AS travel_origincity, 
+//              t.start_date, t.end_date, t.duration, t.adults_count, t.children_count, 
+//              t.child_ages, t.approx_budget, t.description AS travel_description, t.email_sent
+//       FROM addleads a 
+//       LEFT JOIN travel_opportunity t ON a.leadid = t.leadid
+//       WHERE a.archive IS NULL
+//       ORDER BY t.leadid DESC`;
+
+//   db.query(leadQuery, (err, leadResults) => {
+//       if (err) {
+//           console.error("Error fetching lead data: ", err);
+//           return res.status(500).json({ error: "Database query failed" });
+//       }
+
+//       if (leadResults.length === 0) {
+//           return res.status(404).json({ message: "No lead data found" });
+//       }
+
+//       // Extract leadids from the results
+//       const leadIds = leadResults.map(lead => lead.leadid);
+      
+//       if (leadIds.length === 0) {
+//           return res.json(leadResults.map(lead => ({
+//               ...lead,
+//               suppliers: [],
+//               payment_logs: []
+//           })));
+//       }
+
+//       // Query to get suppliers for these leadids
+//       const supplierQuery = `
+//           SELECT * FROM suppliers 
+//           WHERE leadid IN (?) 
+//           ORDER BY leadid DESC, id DESC`;
+      
+//       // Query to get payment logs for these leadids
+//       const paymentLogQuery = `
+//           SELECT * FROM payment_log 
+//           WHERE leadid IN (?) 
+//           ORDER BY leadid DESC, paid_on DESC`;
+
+//       // Execute both queries in parallel
+//       db.query(supplierQuery, [leadIds], (supplierErr, supplierResults) => {
+//           if (supplierErr) {
+//               console.error("Error fetching supplier data: ", supplierErr);
+//               return res.status(500).json({ error: "Supplier query failed" });
+//           }
+
+//           db.query(paymentLogQuery, [leadIds], (paymentErr, paymentResults) => {
+//               if (paymentErr) {
+//                   console.error("Error fetching payment logs: ", paymentErr);
+//                   return res.status(500).json({ error: "Payment log query failed" });
+//               }
+
+//               // Group suppliers by leadid
+//               const suppliersByLead = supplierResults.reduce((acc, supplier) => {
+//                   if (!acc[supplier.leadid]) {
+//                       acc[supplier.leadid] = [];
+//                   }
+//                   acc[supplier.leadid].push(supplier);
+//                   return acc;
+//               }, {});
+
+//               // Group payment logs by leadid
+//               const paymentsByLead = paymentResults.reduce((acc, payment) => {
+//                   if (!acc[payment.leadid]) {
+//                       acc[payment.leadid] = [];
+//                   }
+//                   acc[payment.leadid].push(payment);
+//                   return acc;
+//               }, {});
+
+//               // Combine all data
+//               const combinedResults = leadResults.map(lead => ({
+//                   ...lead,
+//                   suppliers: suppliersByLead[lead.leadid] || [],
+//                   payment_logs: paymentsByLead[lead.leadid] || []
+//               }));
+
+//               res.json(combinedResults);
+//           });
+//       });
+//   });
+// });
+
+
 router.get("/api/fetch-lead-suppliers", (req, res) => {
   // First query to get lead and travel opportunity data
   const leadQuery = `
       SELECT a.*, t.destination AS travel_destination, t.quotation_id, 
              t.created_at AS travel_created_at, t.origincity AS travel_origincity, 
              t.start_date, t.end_date, t.duration, t.adults_count, t.children_count, 
-             t.child_ages, t.approx_budget, t.description AS travel_description, t.email_sent
+             t.child_ages, t.approx_budget, t.description AS travel_description, t.email_sent,
+             -- Fetching the most recent updated_at for each leadid from different tables
+             GREATEST(
+                 IFNULL(MAX(a.updated_at), '1970-01-01'),
+                 IFNULL(MAX(t.updated_at), '1970-01-01'),
+                 IFNULL(MAX(p.updatedAt), '1970-01-01'),
+                 IFNULL(MAX(r.updated_at), '1970-01-01')
+             ) AS most_recent_updated_at
       FROM addleads a 
       LEFT JOIN travel_opportunity t ON a.leadid = t.leadid
+      LEFT JOIN payment_log p ON a.leadid = p.leadid
+      LEFT JOIN receivables r ON a.leadid = r.leadid
       WHERE a.archive IS NULL
+      AND a.status = 'opportunity'
+      GROUP BY a.leadid
       ORDER BY t.leadid DESC`;
 
   db.query(leadQuery, (err, leadResults) => {
-      if (err) {
-          console.error("Error fetching lead data: ", err);
-          return res.status(500).json({ error: "Database query failed" });
-      }
+    if (err) {
+      console.error("Error fetching lead data: ", err);
+      return res.status(500).json({ error: "Database query failed" });
+    }
 
-      if (leadResults.length === 0) {
-          return res.status(404).json({ message: "No lead data found" });
-      }
+    if (leadResults.length === 0) {
+      return res.status(404).json({ message: "No lead data found" });
+    }
 
-      // Extract leadids from the results
-      const leadIds = leadResults.map(lead => lead.leadid);
-      
-      if (leadIds.length === 0) {
-          return res.json(leadResults.map(lead => ({
-              ...lead,
-              suppliers: [],
-              payment_logs: []
-          })));
-      }
+    // Extract leadids from the results
+    const leadIds = leadResults.map(lead => lead.leadid);
 
-      // Query to get suppliers for these leadids
-      const supplierQuery = `
-          SELECT * FROM suppliers 
-          WHERE leadid IN (?) 
-          ORDER BY leadid DESC, id DESC`;
-      
-      // Query to get payment logs for these leadids
-      const paymentLogQuery = `
-          SELECT * FROM payment_log 
-          WHERE leadid IN (?) 
-          ORDER BY leadid DESC, paid_on DESC`;
+    if (leadIds.length === 0) {
+      return res.json(leadResults.map(lead => ({
+        ...lead,
+        suppliers: [],
+        payment_logs: []
+      })));
+    }
 
-      // Execute both queries in parallel
-      db.query(supplierQuery, [leadIds], (supplierErr, supplierResults) => {
+    // Query to get suppliers for these leadids
+    const supplierQuery = `
+        SELECT * FROM suppliers 
+        WHERE leadid IN (?) 
+        ORDER BY leadid DESC, id DESC`;
+
+    // Query to get payment logs for these leadids
+    const paymentLogQuery = `
+        SELECT * FROM payment_log 
+        WHERE leadid IN (?) 
+        ORDER BY leadid DESC, paid_on DESC`;
+
+    // Execute both queries in parallel using Promise.all
+    Promise.all([
+      new Promise((resolve, reject) => {
+        db.query(supplierQuery, [leadIds], (supplierErr, supplierResults) => {
           if (supplierErr) {
-              console.error("Error fetching supplier data: ", supplierErr);
-              return res.status(500).json({ error: "Supplier query failed" });
+            reject("Error fetching supplier data: " + supplierErr);
+          } else {
+            resolve(supplierResults);
           }
+        });
+      }),
+      new Promise((resolve, reject) => {
+        db.query(paymentLogQuery, [leadIds], (paymentErr, paymentResults) => {
+          if (paymentErr) {
+            reject("Error fetching payment log data: " + paymentErr);
+          } else {
+            resolve(paymentResults);
+          }
+        });
+      })
+    ])
+    .then(([supplierResults, paymentResults]) => {
+      // Group suppliers by leadid
+      const suppliersByLead = supplierResults.reduce((acc, supplier) => {
+        if (!acc[supplier.leadid]) {
+          acc[supplier.leadid] = [];
+        }
+        acc[supplier.leadid].push(supplier);
+        return acc;
+      }, {});
 
-          db.query(paymentLogQuery, [leadIds], (paymentErr, paymentResults) => {
-              if (paymentErr) {
-                  console.error("Error fetching payment logs: ", paymentErr);
-                  return res.status(500).json({ error: "Payment log query failed" });
-              }
+      // Group payment logs by leadid
+      const paymentsByLead = paymentResults.reduce((acc, payment) => {
+        if (!acc[payment.leadid]) {
+          acc[payment.leadid] = [];
+        }
+        acc[payment.leadid].push(payment);
+        return acc;
+      }, {});
 
-              // Group suppliers by leadid
-              const suppliersByLead = supplierResults.reduce((acc, supplier) => {
-                  if (!acc[supplier.leadid]) {
-                      acc[supplier.leadid] = [];
-                  }
-                  acc[supplier.leadid].push(supplier);
-                  return acc;
-              }, {});
+      // Combine all data
+      const combinedResults = leadResults.map(lead => ({
+        ...lead,
+        suppliers: suppliersByLead[lead.leadid] || [],
+        payment_logs: paymentsByLead[lead.leadid] || []
+      }));
 
-              // Group payment logs by leadid
-              const paymentsByLead = paymentResults.reduce((acc, payment) => {
-                  if (!acc[payment.leadid]) {
-                      acc[payment.leadid] = [];
-                  }
-                  acc[payment.leadid].push(payment);
-                  return acc;
-              }, {});
-
-              // Combine all data
-              const combinedResults = leadResults.map(lead => ({
-                  ...lead,
-                  suppliers: suppliersByLead[lead.leadid] || [],
-                  payment_logs: paymentsByLead[lead.leadid] || []
-              }));
-
-              res.json(combinedResults);
-          });
-      });
+      res.json(combinedResults);
+    })
+    .catch((error) => {
+      console.error(error);
+      res.status(500).json({ error: "Error fetching suppliers or payment logs" });
+    });
   });
 });
+
 
 
 module.exports = router;

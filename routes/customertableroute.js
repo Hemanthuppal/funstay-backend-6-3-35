@@ -16,23 +16,68 @@ router.get('/api/customers', (req, res) => {
   });
 });
 
-// Fetch a customer by ID
-router.get('/api/customers/:id', (req, res) => {
-  const customerId = req.params.id;
-  const query = 'SELECT * FROM customers WHERE id = ?';
+// // Fetch a customer by ID
+// router.get('/api/customers/:id', (req, res) => {
+//   const customerId = req.params.id;
+//   const query = 'SELECT * FROM customers WHERE id = ?';
 
-  db.query(query, [customerId], (err, results) => {
-    if (err) {
-      console.error("Error fetching customer:", err);
-      return res.status(500).json({ message: "Database error." });
+//   db.query(query, [customerId], (err, results) => {
+//     if (err) {
+//       console.error("Error fetching customer:", err);
+//       return res.status(500).json({ message: "Database error." });
+//     }
+
+//     if (results.length === 0) {
+//       return res.status(404).json({ message: "Customer not found." });
+//     }
+
+//     res.status(200).json(results[0]); // Return the specific customer data
+//   });
+// });
+
+// Get customer with populated tags
+router.get("/api/customers/:id", async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const [customers] = await db.promise().query(
+            "SELECT * FROM customers WHERE id = ?",
+            [id]
+        );
+
+        if (customers.length === 0) {
+            return res.status(404).json({ error: "Customer not found" });
+        }
+
+        const customer = customers[0];
+        let tags = [];
+        
+        // Parse tags if they exist
+        if (customer.tags) {
+            try {
+                const tagIds = JSON.parse(customer.tags);
+                if (Array.isArray(tagIds) && tagIds.length > 0) {
+                    [tags] = await db.promise().query(
+                        "SELECT id, value, label FROM tags WHERE id IN (?)",
+                        [tagIds]
+                    );
+                }
+            } catch (e) {
+                console.error("Error parsing tags:", e);
+            }
+        }
+
+        res.json({ 
+            ...customer,
+            tags: Array.isArray(tags) ? tags : [] // Ensure tags is always an array
+        });
+    } catch (err) {
+        console.error("Database error:", err);
+        return res.status(500).json({ 
+            error: "Database error", 
+            details: err.message 
+        });
     }
-
-    if (results.length === 0) {
-      return res.status(404).json({ message: "Customer not found." });
-    }
-
-    res.status(200).json(results[0]); // Return the specific customer data
-  });
 });
 
 router.get('/api/travel-opportunities/:customerid', (req, res) => {

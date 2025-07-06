@@ -1,12 +1,12 @@
 const mysql = require('mysql2');
 
 
-// const db = mysql.createConnection({
-//   host: 'localhost', // Your database host
-//   user: 'nodeuser', // Your database user
-//   password: 'Root@1234', // Your database password
-//   database: 'funstay_db', // Your database name
-// });
+const db = mysql.createConnection({
+  host: 'localhost', // Your database host
+  user: 'nodeuser', // Your database user
+  password: 'Root@1234', // Your database password
+  database: 'funstay_db', // Your database name
+});
 
 // const db = mysql.createConnection({
 //   host: 'localhost',
@@ -15,12 +15,12 @@ const mysql = require('mysql2');
 //   database: 'funstay', // Replace with your DB name
 // });
 
-const db = mysql.createConnection({
-  host: 'localhost',
-  user: 'root',
-  password: '', // Replace with your DB password
-  database: 'funstaydb', // Replace with your DB name
-});
+// const db = mysql.createConnection({
+//   host: 'localhost',
+//   user: 'root',
+//   password: '', // Replace with your DB password
+//   database: 'funstaydb', // Replace with your DB name
+// });
 
 // const db = mysql.createConnection({
 //   host: 'localhost',

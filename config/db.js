@@ -19,7 +19,7 @@ const db = mysql.createConnection({
   host: 'localhost',
   user: 'root',
   password: '', // Replace with your DB password
-  database: 'funstaydb', // Replace with your DB name
+  database: 'funstay_db', // Replace with your DB name
 });
 
 // const db = mysql.createConnection({

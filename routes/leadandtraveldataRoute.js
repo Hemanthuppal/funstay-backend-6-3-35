@@ -25,6 +25,59 @@ router.get("/fetch-data", (req, res) => {
     });
 });
 
+
+router.get("/most-fetch-data", (req, res) => {
+    const query = `
+    SELECT 
+        a.*, 
+        t.destination AS travel_destination,
+        t.quotation_id, 
+        t.created_at AS travel_created_at, 
+        t.origincity AS travel_origincity, 
+        t.start_date, 
+        t.end_date, 
+        t.duration, 
+        t.adults_count, 
+        t.children_count, 
+        t.child_ages, 
+        t.approx_budget, 
+        t.description AS travel_description,
+        t.email_sent,
+        -- Fetching the most recent updated_at for each leadid from different tables
+        GREATEST(
+            IFNULL(MAX(a.updated_at), '1970-01-01'),
+            IFNULL(MAX(t.updated_at), '1970-01-01'),
+            IFNULL(MAX(p.updatedAt), '1970-01-01'),
+            IFNULL(MAX(r.updated_at), '1970-01-01')
+        ) AS most_recent_updated_at
+    FROM addleads a 
+    LEFT JOIN travel_opportunity t 
+        ON a.leadid = t.leadid
+    LEFT JOIN payment_log p 
+        ON a.leadid = p.leadid
+    LEFT JOIN receivables r 
+        ON a.leadid = r.leadid
+    WHERE a.archive IS NULL
+    AND a.status = 'opportunity'
+    GROUP BY a.leadid
+    ORDER BY t.leadid DESC`;
+
+    db.query(query, (err, results) => {
+        if (err) {
+            console.error("Error fetching data: ", err);
+            return res.status(500).json({ error: "Database query failed" });
+        }
+        // Check if results are empty
+        if (results.length === 0) {
+            return res.status(404).json({ message: "No data found" });
+        }
+        res.json(results);
+    });
+});
+
+
+
+
 // router.put("/update-lead-customer/:leadid", (req, res) => {
 //     console.log("Request Body:", req.body); // Log the request body
 //     const leadid = req.params.leadid;

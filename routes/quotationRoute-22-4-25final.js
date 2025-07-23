@@ -433,6 +433,92 @@ router.get("/latest-quotation", async (req, res) => {
 
 
 
+// router.post("/send-bulk-emails", upload.single("file"), async (req, res) => {
+//     const {
+//       leadid,
+//       subject,
+//       text,
+//       type,
+//       is_plain_text,
+//       sender_email,
+//     } = req.body;
+//     console.log("REQ BODY:", req.body);
+  
+//     const receiver_emails = JSON.parse(req.body.receiver_emails || "[]");
+//     const file_path = req.file ? `/uploads/${req.file.filename}` : null;
+  
+//     if (!leadid || receiver_emails.length === 0 || (!text && !file_path) || !type || !sender_email) {
+//       return res.status(400).json({ error: "Missing required fields." });
+//     }
+  
+//     try {
+//       const [credentials] = await new Promise((resolve, reject) => {
+//         db.query(
+//           `SELECT sender_email, app_password FROM email_credentials WHERE sender_email = ? LIMIT 1`,
+//           [sender_email],
+//           (err, result) => {
+//             if (err) reject(err);
+//             else resolve(result);
+//           }
+//         );
+//       });
+  
+//       if (!credentials) {
+//         return res.status(403).json({ error: "Invalid sender email or credentials not found." });
+//       }
+  
+//       let transporter = credentials.sender_email.endsWith("@iiiqai.com")
+//         ? nodemailer.createTransport({
+//             host: "smtp.titan.email",
+//             port: 465,
+//             secure: true,
+//             auth: { user: credentials.sender_email, pass: credentials.app_password },
+//             tls: { rejectUnauthorized: false },
+//           })
+//         : nodemailer.createTransport({
+//             service: "gmail",
+//             auth: { user: credentials.sender_email, pass: credentials.app_password },
+//             tls: { rejectUnauthorized: false },
+//           });
+  
+//       const results = [];
+  
+//       for (const receiver_email of receiver_emails) {
+//         const mailOptions = {
+//           from: credentials.sender_email,
+//           to: receiver_email,
+//           subject: subject,
+//           ...(is_plain_text === "true" ? { text: text } : { html: text }),
+//           attachments: file_path ? [{ path: path.join(uploadDir, req.file.filename) }] : [],
+//         };
+  
+//         try {
+//           const info = await transporter.sendMail(mailOptions);
+//           console.log(`Email sent to ${receiver_email}: ${info.messageId}`);
+  
+//           // Insert into DB
+//           await new Promise((resolve, reject) => {
+//             db.query(
+//               `INSERT INTO emails (leadid, receiver_email, subject, text, file_path, type, email_sent, message_id, sender_email) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+//               [leadid, receiver_email, subject, text || "", file_path, type, 1, info.messageId, sender_email],
+//               (err, result) => (err ? reject(err) : resolve(result))
+//             );
+//           });
+  
+//           results.push({ email: receiver_email, success: true });
+//         } catch (err) {
+//           console.error(`Failed to send email to ${receiver_email}`, err);
+//           results.push({ email: receiver_email, success: false, error: err.message });
+//         }
+//       }
+  
+//       res.json({ message: "Bulk email sending complete", results });
+//     } catch (error) {
+//       console.error("Bulk Send Error:", error);
+//       res.status(500).json({ error: "Server error", details: error.message });
+//     }
+//   });
+  
 router.post("/send-bulk-emails", upload.single("file"), async (req, res) => {
     const {
       leadid,
@@ -441,16 +527,21 @@ router.post("/send-bulk-emails", upload.single("file"), async (req, res) => {
       type,
       is_plain_text,
       sender_email,
+      cc_emails, // Receive CC emails
+      bcc_emails, // Receive BCC emails
     } = req.body;
+
     console.log("REQ BODY:", req.body);
-  
+
     const receiver_emails = JSON.parse(req.body.receiver_emails || "[]");
     const file_path = req.file ? `/uploads/${req.file.filename}` : null;
-  
+    const ccEmails = JSON.parse(cc_emails || "[]");  // Parse CC emails
+    const bccEmails = JSON.parse(bcc_emails || "[]");  // Parse BCC emails
+
     if (!leadid || receiver_emails.length === 0 || (!text && !file_path) || !type || !sender_email) {
       return res.status(400).json({ error: "Missing required fields." });
     }
-  
+
     try {
       const [credentials] = await new Promise((resolve, reject) => {
         db.query(
@@ -462,11 +553,11 @@ router.post("/send-bulk-emails", upload.single("file"), async (req, res) => {
           }
         );
       });
-  
+
       if (!credentials) {
         return res.status(403).json({ error: "Invalid sender email or credentials not found." });
       }
-  
+
       let transporter = credentials.sender_email.endsWith("@iiiqai.com")
         ? nodemailer.createTransport({
             host: "smtp.titan.email",
@@ -480,45 +571,46 @@ router.post("/send-bulk-emails", upload.single("file"), async (req, res) => {
             auth: { user: credentials.sender_email, pass: credentials.app_password },
             tls: { rejectUnauthorized: false },
           });
-  
+
       const results = [];
-  
+
       for (const receiver_email of receiver_emails) {
         const mailOptions = {
           from: credentials.sender_email,
           to: receiver_email,
+          cc: ccEmails.join(", "),  // Include CC emails
+          bcc: bccEmails.join(", "),  // Include BCC emails
           subject: subject,
           ...(is_plain_text === "true" ? { text: text } : { html: text }),
           attachments: file_path ? [{ path: path.join(uploadDir, req.file.filename) }] : [],
         };
-  
+
         try {
           const info = await transporter.sendMail(mailOptions);
           console.log(`Email sent to ${receiver_email}: ${info.messageId}`);
-  
+
           // Insert into DB
           await new Promise((resolve, reject) => {
             db.query(
-              `INSERT INTO emails (leadid, receiver_email, subject, text, file_path, type, email_sent, message_id, sender_email) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-              [leadid, receiver_email, subject, text || "", file_path, type, 1, info.messageId, sender_email],
+              `INSERT INTO emails (leadid, receiver_email, subject, text, file_path, type, email_sent, message_id, sender_email, cc_emails, bcc_emails) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [leadid, receiver_email, subject, text || "", file_path, type, 1, info.messageId, sender_email, JSON.stringify(ccEmails), JSON.stringify(bccEmails)],
               (err, result) => (err ? reject(err) : resolve(result))
             );
           });
-  
+
           results.push({ email: receiver_email, success: true });
         } catch (err) {
           console.error(`Failed to send email to ${receiver_email}`, err);
           results.push({ email: receiver_email, success: false, error: err.message });
         }
       }
-  
+
       res.json({ message: "Bulk email sending complete", results });
     } catch (error) {
       console.error("Bulk Send Error:", error);
       res.status(500).json({ error: "Server error", details: error.message });
     }
-  });
-  
+});
 
   router.post('/credentials', (req, res) => {
     const { sender_email, app_password } = req.body;
